@@ -1,8 +1,10 @@
 # medium-articles
 
-This repository hosts the accompanying code to the Medium blog articles written by [Benjamin Lee](https://medium.com/@bl3e967).
+This repository hosts the accompanying code to the Medium blog articles written by [Benjamin Lee](https://medium.com/@bl3e967). 
 
-The code for each article can be found in their respective folders under the same name.
+Each article is accompanied by a Jupyter notebook that can be used while reading to help understanding.
+
+The code for each article can be found in their respective folders under the same name as the title.
 
 ## Articles
 
