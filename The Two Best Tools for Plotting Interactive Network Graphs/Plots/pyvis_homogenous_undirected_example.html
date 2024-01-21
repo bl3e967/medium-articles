@@ -1,0 +1,338 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+                <link href="lib/tom-select/tom-select.css" rel="stylesheet">
+                <script src="lib/tom-select/tom-select.complete.min.js"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 900;
+                 background-color: grey;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+             #config {
+                 float: left;
+                 width: 400px;
+                 height: 600px;
+             }
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+              <div id="filter-menu" class="card-header">
+                <div class="row no-gutters">
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'item')"
+                            id="select-item"
+                        >
+                        <option value="">Select a network item</option>
+                        <option value="edge">edge</option>
+                        <option value="node">node</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'property')"
+                            id="select-property"
+                        >
+                        <option value="">Select a property...</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            id="select-value"
+                        >
+                        <option value="">Select value(s)...</option>
+                    </select>
+                  </div>
+                  <div class="col-1 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="highlightFilter(filter);">Filter</button>
+                  </div>
+                  <div class="col-2 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="clearFilter(true)">Reset Selection</button>
+                  </div>
+                </div>
+              </div>
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+            <div id="config"></div>
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+                  // explicitly using onItemAdd and this function as we need to save multiple values
+                  let updateValueFilter = function() {
+                      return function () {
+                      filter['value'].push(arguments[0])
+                      }
+                  }
+
+                  let valueControl = new TomSelect("#select-value",{
+                      maxItems: null,
+                      valueField: 'id',
+                      labelField: 'title',
+                      searchField: 'title',
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: updateValueFilter()
+                  });
+
+                  let addValues = function() {
+                      return function () {
+                          // clear the current value options and add the selected attribute values
+                          // tom-select handles duplicates
+                          let selectedProperty = arguments[0];
+                          valueControl.clear();
+                          valueControl.clearOptions();
+                          filter['value'] = []
+                          if (filter['item'] === 'node') {
+                              for (let each in allNodes) {
+                                  valueControl.addOption({
+                                      id:allNodes[each][selectedProperty],
+                                      title:allNodes[each][selectedProperty]
+                                  })
+                              }
+                          }
+                          else if (filter['item'] === 'edge') {
+                              for (let each in allEdges) {
+                                  valueControl.addOption({
+                                      id:allEdges[each][selectedProperty],
+                                      title:allEdges[each][selectedProperty]
+                                  })
+                              }
+                          }
+                      }
+                  };
+
+                  let propControl = new TomSelect("#select-property",{
+                      valueField: 'id',
+                      labelField: 'title',
+                      searchField: 'title',
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: addValues()
+                  });
+
+                  let addProperties = function() {
+                      return function () {
+                          // loops through the selected network item and adds the attributes to dropdown
+                          // tom-select handles duplicates
+                          clearFilter(false)
+                          if (arguments[0] === 'edge') {
+                              for (let each in allEdges) {
+                                  if (allEdges.hasOwnProperty(each)) {
+                                      for (let eachProp in allEdges[each]) {
+                                          if (allEdges[each].hasOwnProperty(eachProp)) {
+                                              propControl.addOption({id: eachProp, title: eachProp})
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                          else if (arguments[0] === 'node') {
+                              for (let each in allNodes) {
+                                  if (allNodes.hasOwnProperty(each)) {
+                                      for (let eachProp in allNodes[each]) {
+                                          if (allNodes[each].hasOwnProperty(eachProp)
+                                              && (eachProp !== 'hidden' && eachProp !== 'savedLabel'
+                                                  && eachProp !== 'hiddenLabel')) {
+                                              propControl.addOption({id: eachProp, title: eachProp})
+
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  };
+
+                  let itemControl = new TomSelect("#select-item",{
+                      create: false,
+                      sortField:{
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: addProperties()
+                  });
+
+                  function clearFilter(reset) {
+                      // utility function to clear all the selected filter options
+                      // if reset is set to true, the existing filter will be removed
+                      // else, only the dropdown options are cleared
+                      propControl.clear();
+                      propControl.clearOptions();
+                      valueControl.clear();
+                      valueControl.clearOptions();
+                      filter = {
+                          item : '',
+                          property : '',
+                          value : []
+                      }
+                      if (reset) {
+                          itemControl.clear();
+                          filterHighlight({nodes: []})
+                      }
+                  }
+
+                  function updateFilter(value, key) {
+                      // key could be 'item' or 'property' and value is as selected in dropdown
+                      filter[key] = value
+                  }
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"betweenness_centrality": 0.42794582118561714, "color": "rgb(103,0,12)", "degree": 14, "feature1": 0.458711331754331, "feature2": 9, "feature3": 1, "id": 0, "label": "28f2adfd-cc1b-42ac-853c-36b161712845", "node_identifier": "28f2adfd-cc1b-42ac-853c-36b161712845", "shape": "dot", "size": 10, "title": "Node: 28f2adfd-cc1b-42ac-853c-36b161712845\nNode Features:\nfeature 1: 0.458711331754331\nfeature 2: 9\nfeature 3: 1\nBetweenness Centrality: 0.42794582118561714\nDegree: 14", "value": 0.42794582118561714}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 2, "feature1": 0.5919586941804688, "feature2": 40, "feature3": 1, "id": 1, "label": "5319b327-d68f-4497-9b65-19a0cdf77b0e", "node_identifier": "5319b327-d68f-4497-9b65-19a0cdf77b0e", "shape": "dot", "size": 10, "title": "Node: 5319b327-d68f-4497-9b65-19a0cdf77b0e\nNode Features:\nfeature 1: 0.5919586941804688\nfeature 2: 40\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 2", "value": 0.0}, {"betweenness_centrality": 0.02956754130223518, "color": "rgb(254,233,224)", "degree": 4, "feature1": 0.43823982611449275, "feature2": 67, "feature3": 0, "id": 2, "label": "0fe1cf11-5ab2-43f9-a5bc-496a21dd67f0", "node_identifier": "0fe1cf11-5ab2-43f9-a5bc-496a21dd67f0", "shape": "dot", "size": 10, "title": "Node: 0fe1cf11-5ab2-43f9-a5bc-496a21dd67f0\nNode Features:\nfeature 1: 0.43823982611449275\nfeature 2: 67\nfeature 3: 0\nBetweenness Centrality: 0.02956754130223518\nDegree: 4", "value": 0.02956754130223518}, {"betweenness_centrality": 0.29690030774214465, "color": "rgb(219,39,35)", "degree": 11, "feature1": 0.08172842066270547, "feature2": 40, "feature3": 0, "id": 3, "label": "10692dbd-483a-4bc0-9177-97c03a5637c8", "node_identifier": "10692dbd-483a-4bc0-9177-97c03a5637c8", "shape": "dot", "size": 10, "title": "Node: 10692dbd-483a-4bc0-9177-97c03a5637c8\nNode Features:\nfeature 1: 0.08172842066270547\nfeature 2: 40\nfeature 3: 0\nBetweenness Centrality: 0.29690030774214465\nDegree: 11", "value": 0.29690030774214465}, {"betweenness_centrality": 0.14867589893100094, "color": "rgb(252,155,125)", "degree": 8, "feature1": 0.22077274357658094, "feature2": 80, "feature3": 1, "id": 5, "label": "7be9f135-c6fa-4903-b476-e6d85e0d42f2", "node_identifier": "7be9f135-c6fa-4903-b476-e6d85e0d42f2", "shape": "dot", "size": 10, "title": "Node: 7be9f135-c6fa-4903-b476-e6d85e0d42f2\nNode Features:\nfeature 1: 0.22077274357658094\nfeature 2: 80\nfeature 3: 1\nBetweenness Centrality: 0.14867589893100094\nDegree: 8", "value": 0.14867589893100094}, {"betweenness_centrality": 0.06757167152575315, "color": "rgb(253,214,197)", "degree": 5, "feature1": 0.7644001631185048, "feature2": 90, "feature3": 1, "id": 6, "label": "b8b0fe6b-03d6-4b3c-b2cd-8901e7c1b5b0", "node_identifier": "b8b0fe6b-03d6-4b3c-b2cd-8901e7c1b5b0", "shape": "dot", "size": 10, "title": "Node: b8b0fe6b-03d6-4b3c-b2cd-8901e7c1b5b0\nNode Features:\nfeature 1: 0.7644001631185048\nfeature 2: 90\nfeature 3: 1\nBetweenness Centrality: 0.06757167152575315\nDegree: 5", "value": 0.06757167152575315}, {"betweenness_centrality": 0.15818351149983803, "color": "rgb(252,148,116)", "degree": 7, "feature1": 0.5293395155218242, "feature2": 38, "feature3": 0, "id": 9, "label": "64bb5773-c4ad-4a8d-b21d-e98ce866914b", "node_identifier": "64bb5773-c4ad-4a8d-b21d-e98ce866914b", "shape": "dot", "size": 10, "title": "Node: 64bb5773-c4ad-4a8d-b21d-e98ce866914b\nNode Features:\nfeature 1: 0.5293395155218242\nfeature 2: 38\nfeature 3: 0\nBetweenness Centrality: 0.15818351149983803\nDegree: 7", "value": 0.15818351149983803}, {"betweenness_centrality": 0.41965298023971487, "color": "rgb(110,1,14)", "degree": 14, "feature1": 0.1948313666967889, "feature2": 29, "feature3": 1, "id": 11, "label": "907138cc-0024-44f1-86da-903277a1e9b0", "node_identifier": "907138cc-0024-44f1-86da-903277a1e9b0", "shape": "dot", "size": 10, "title": "Node: 907138cc-0024-44f1-86da-903277a1e9b0\nNode Features:\nfeature 1: 0.1948313666967889\nfeature 2: 29\nfeature 3: 1\nBetweenness Centrality: 0.41965298023971487\nDegree: 14", "value": 0.41965298023971487}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.2987306055329564, "feature2": 31, "feature3": 1, "id": 15, "label": "8f49af29-4f4d-4349-82de-597cc5e80f9e", "node_identifier": "8f49af29-4f4d-4349-82de-597cc5e80f9e", "shape": "dot", "size": 10, "title": "Node: 8f49af29-4f4d-4349-82de-597cc5e80f9e\nNode Features:\nfeature 1: 0.2987306055329564\nfeature 2: 31\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.23862999609818825, "feature2": 51, "feature3": 0, "id": 20, "label": "389019ae-d8cf-4391-8278-fdbaf9e55065", "node_identifier": "389019ae-d8cf-4391-8278-fdbaf9e55065", "shape": "dot", "size": 10, "title": "Node: 389019ae-d8cf-4391-8278-fdbaf9e55065\nNode Features:\nfeature 1: 0.23862999609818825\nfeature 2: 51\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.020918367346938777, "color": "rgb(254,237,228)", "degree": 2, "feature1": 0.11623052137786105, "feature2": 6, "feature3": 0, "id": 22, "label": "30fc768b-2a62-4836-880f-bfa466c678a8", "node_identifier": "30fc768b-2a62-4836-880f-bfa466c678a8", "shape": "dot", "size": 10, "title": "Node: 30fc768b-2a62-4836-880f-bfa466c678a8\nNode Features:\nfeature 1: 0.11623052137786105\nfeature 2: 6\nfeature 3: 0\nBetweenness Centrality: 0.020918367346938777\nDegree: 2", "value": 0.020918367346938777}, {"betweenness_centrality": 0.08366739552964042, "color": "rgb(252,202,182)", "degree": 3, "feature1": 0.44947260349812546, "feature2": 73, "feature3": 0, "id": 25, "label": "d413854c-59ae-4022-af56-21aeb041bb73", "node_identifier": "d413854c-59ae-4022-af56-21aeb041bb73", "shape": "dot", "size": 10, "title": "Node: d413854c-59ae-4022-af56-21aeb041bb73\nNode Features:\nfeature 1: 0.44947260349812546\nfeature 2: 73\nfeature 3: 0\nBetweenness Centrality: 0.08366739552964042\nDegree: 3", "value": 0.08366739552964042}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.8332178791257259, "feature2": 37, "feature3": 1, "id": 36, "label": "195ea095-808a-49ef-b320-f7488e4350e8", "node_identifier": "195ea095-808a-49ef-b320-f7488e4350e8", "shape": "dot", "size": 10, "title": "Node: 195ea095-808a-49ef-b320-f7488e4350e8\nNode Features:\nfeature 1: 0.8332178791257259\nfeature 2: 37\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.10680516675298513, "feature2": 73, "feature3": 0, "id": 38, "label": "11e95b05-c137-4b26-b874-b395fe17eea8", "node_identifier": "11e95b05-c137-4b26-b874-b395fe17eea8", "shape": "dot", "size": 10, "title": "Node: 11e95b05-c137-4b26-b874-b395fe17eea8\nNode Features:\nfeature 1: 0.10680516675298513\nfeature 2: 73\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.010734531908001298, "color": "rgb(254,241,234)", "degree": 2, "feature1": 0.41519455809677863, "feature2": 47, "feature3": 0, "id": 39, "label": "d3121c4a-59b6-434a-adf3-2c8da6a756b4", "node_identifier": "d3121c4a-59b6-434a-adf3-2c8da6a756b4", "shape": "dot", "size": 10, "title": "Node: d3121c4a-59b6-434a-adf3-2c8da6a756b4\nNode Features:\nfeature 1: 0.41519455809677863\nfeature 2: 47\nfeature 3: 0\nBetweenness Centrality: 0.010734531908001298\nDegree: 2", "value": 0.010734531908001298}, {"betweenness_centrality": 0.04209183673469386, "color": "rgb(254,228,216)", "degree": 3, "feature1": 0.21845420700988438, "feature2": 72, "feature3": 0, "id": 4, "label": "f797b4ce-b0b3-4e72-9e2a-9d1a6ed6c286", "node_identifier": "f797b4ce-b0b3-4e72-9e2a-9d1a6ed6c286", "shape": "dot", "size": 10, "title": "Node: f797b4ce-b0b3-4e72-9e2a-9d1a6ed6c286\nNode Features:\nfeature 1: 0.21845420700988438\nfeature 2: 72\nfeature 3: 0\nBetweenness Centrality: 0.04209183673469386\nDegree: 3", "value": 0.04209183673469386}, {"betweenness_centrality": 0.04209183673469387, "color": "rgb(254,228,216)", "degree": 3, "feature1": 0.8123753649002498, "feature2": 12, "feature3": 0, "id": 32, "label": "dd7099f1-c604-46d4-8727-058259e5ccb1", "node_identifier": "dd7099f1-c604-46d4-8727-058259e5ccb1", "shape": "dot", "size": 10, "title": "Node: dd7099f1-c604-46d4-8727-058259e5ccb1\nNode Features:\nfeature 1: 0.8123753649002498\nfeature 2: 12\nfeature 3: 0\nBetweenness Centrality: 0.04209183673469387\nDegree: 3", "value": 0.04209183673469387}, {"betweenness_centrality": 0.0056689342403628135, "color": "rgb(254,243,237)", "degree": 2, "feature1": 0.5590723186329775, "feature2": 10, "feature3": 0, "id": 33, "label": "da6b5163-2912-4f7d-bbea-8b7369429961", "node_identifier": "da6b5163-2912-4f7d-bbea-8b7369429961", "shape": "dot", "size": 10, "title": "Node: da6b5163-2912-4f7d-bbea-8b7369429961\nNode Features:\nfeature 1: 0.5590723186329775\nfeature 2: 10\nfeature 3: 0\nBetweenness Centrality: 0.0056689342403628135\nDegree: 2", "value": 0.0056689342403628135}, {"betweenness_centrality": 0.004575639779721411, "color": "rgb(254,243,238)", "degree": 2, "feature1": 0.6384190510242195, "feature2": 12, "feature3": 0, "id": 7, "label": "af7f0cf7-4c44-4644-bcc7-2627016c563f", "node_identifier": "af7f0cf7-4c44-4644-bcc7-2627016c563f", "shape": "dot", "size": 10, "title": "Node: af7f0cf7-4c44-4644-bcc7-2627016c563f\nNode Features:\nfeature 1: 0.6384190510242195\nfeature 2: 12\nfeature 3: 0\nBetweenness Centrality: 0.004575639779721411\nDegree: 2", "value": 0.004575639779721411}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.802173332313084, "feature2": 64, "feature3": 1, "id": 18, "label": "591054fa-23ce-49d8-86d7-3c27ce95c9d3", "node_identifier": "591054fa-23ce-49d8-86d7-3c27ce95c9d3", "shape": "dot", "size": 10, "title": "Node: 591054fa-23ce-49d8-86d7-3c27ce95c9d3\nNode Features:\nfeature 1: 0.802173332313084\nfeature 2: 64\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.008078231292517007, "color": "rgb(254,242,236)", "degree": 2, "feature1": 0.16974673752428948, "feature2": 56, "feature3": 1, "id": 21, "label": "e42c0581-a5b3-41d4-9eee-8ccd5c860a22", "node_identifier": "e42c0581-a5b3-41d4-9eee-8ccd5c860a22", "shape": "dot", "size": 10, "title": "Node: e42c0581-a5b3-41d4-9eee-8ccd5c860a22\nNode Features:\nfeature 1: 0.16974673752428948\nfeature 2: 56\nfeature 3: 1\nBetweenness Centrality: 0.008078231292517007\nDegree: 2", "value": 0.008078231292517007}, {"betweenness_centrality": 0.017436022027858763, "color": "rgb(254,238,230)", "degree": 3, "feature1": 0.5132723180387239, "feature2": 66, "feature3": 1, "id": 29, "label": "7e138c37-f8d5-4f5d-ab68-c83a9f19c7b0", "node_identifier": "7e138c37-f8d5-4f5d-ab68-c83a9f19c7b0", "shape": "dot", "size": 10, "title": "Node: 7e138c37-f8d5-4f5d-ab68-c83a9f19c7b0\nNode Features:\nfeature 1: 0.5132723180387239\nfeature 2: 66\nfeature 3: 1\nBetweenness Centrality: 0.017436022027858763\nDegree: 3", "value": 0.017436022027858763}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.37252978191865027, "feature2": 47, "feature3": 1, "id": 8, "label": "341fcf2d-aa4b-4ef0-a333-0e00168222f0", "node_identifier": "341fcf2d-aa4b-4ef0-a333-0e00168222f0", "shape": "dot", "size": 10, "title": "Node: 341fcf2d-aa4b-4ef0-a333-0e00168222f0\nNode Features:\nfeature 1: 0.37252978191865027\nfeature 2: 47\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.00619533527696793, "color": "rgb(254,243,237)", "degree": 2, "feature1": 0.5669545641311188, "feature2": 25, "feature3": 1, "id": 14, "label": "1e3144b3-14aa-4f32-b504-625192b035ce", "node_identifier": "1e3144b3-14aa-4f32-b504-625192b035ce", "shape": "dot", "size": 10, "title": "Node: 1e3144b3-14aa-4f32-b504-625192b035ce\nNode Features:\nfeature 1: 0.5669545641311188\nfeature 2: 25\nfeature 3: 1\nBetweenness Centrality: 0.00619533527696793\nDegree: 2", "value": 0.00619533527696793}, {"betweenness_centrality": 0.014796930677032716, "color": "rgb(254,239,232)", "degree": 2, "feature1": 0.7996045833543737, "feature2": 16, "feature3": 0, "id": 16, "label": "185cdc3e-856e-494c-ac2c-d9a78b68b7ab", "node_identifier": "185cdc3e-856e-494c-ac2c-d9a78b68b7ab", "shape": "dot", "size": 10, "title": "Node: 185cdc3e-856e-494c-ac2c-d9a78b68b7ab\nNode Features:\nfeature 1: 0.7996045833543737\nfeature 2: 16\nfeature 3: 0\nBetweenness Centrality: 0.014796930677032716\nDegree: 2", "value": 0.014796930677032716}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.10686034120935684, "feature2": 16, "feature3": 0, "id": 28, "label": "9297556d-b4c8-403a-a728-e1450ba7719a", "node_identifier": "9297556d-b4c8-403a-a728-e1450ba7719a", "shape": "dot", "size": 10, "title": "Node: 9297556d-b4c8-403a-a728-e1450ba7719a\nNode Features:\nfeature 1: 0.10686034120935684\nfeature 2: 16\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.3066898841043473, "feature2": 4, "feature3": 1, "id": 31, "label": "28f2fae3-d7e5-4821-8ae9-2414101b36ee", "node_identifier": "28f2fae3-d7e5-4821-8ae9-2414101b36ee", "shape": "dot", "size": 10, "title": "Node: 28f2fae3-d7e5-4821-8ae9-2414101b36ee\nNode Features:\nfeature 1: 0.3066898841043473\nfeature 2: 4\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0037455458373825724, "color": "rgb(254,243,238)", "degree": 2, "feature1": 0.3875343395667631, "feature2": 79, "feature3": 1, "id": 47, "label": "37d98a90-c7c0-43cd-8f9d-46b29ecfec75", "node_identifier": "37d98a90-c7c0-43cd-8f9d-46b29ecfec75", "shape": "dot", "size": 10, "title": "Node: 37d98a90-c7c0-43cd-8f9d-46b29ecfec75\nNode Features:\nfeature 1: 0.3875343395667631\nfeature 2: 79\nfeature 3: 1\nBetweenness Centrality: 0.0037455458373825724\nDegree: 2", "value": 0.0037455458373825724}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.8976161836938585, "feature2": 85, "feature3": 1, "id": 35, "label": "7c23c784-eb08-426d-a43c-29f46238b601", "node_identifier": "7c23c784-eb08-426d-a43c-29f46238b601", "shape": "dot", "size": 10, "title": "Node: 7c23c784-eb08-426d-a43c-29f46238b601\nNode Features:\nfeature 1: 0.8976161836938585\nfeature 2: 85\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.012514172335600905, "color": "rgb(254,240,233)", "degree": 3, "feature1": 0.5052708710649194, "feature2": 70, "feature3": 1, "id": 43, "label": "2cfa3f5b-f0a5-49d8-90cf-61ec7f57bb4c", "node_identifier": "2cfa3f5b-f0a5-49d8-90cf-61ec7f57bb4c", "shape": "dot", "size": 10, "title": "Node: 2cfa3f5b-f0a5-49d8-90cf-61ec7f57bb4c\nNode Features:\nfeature 1: 0.5052708710649194\nfeature 2: 70\nfeature 3: 1\nBetweenness Centrality: 0.012514172335600905\nDegree: 3", "value": 0.012514172335600905}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.08907742605802238, "feature2": 77, "feature3": 1, "id": 10, "label": "d50ecbea-aaf2-45a7-b1e3-a1a68145935f", "node_identifier": "d50ecbea-aaf2-45a7-b1e3-a1a68145935f", "shape": "dot", "size": 10, "title": "Node: d50ecbea-aaf2-45a7-b1e3-a1a68145935f\nNode Features:\nfeature 1: 0.08907742605802238\nfeature 2: 77\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.8218110316932468, "feature2": 4, "feature3": 0, "id": 12, "label": "a27a7713-884a-44db-97d9-ee9fe54135fb", "node_identifier": "a27a7713-884a-44db-97d9-ee9fe54135fb", "shape": "dot", "size": 10, "title": "Node: a27a7713-884a-44db-97d9-ee9fe54135fb\nNode Features:\nfeature 1: 0.8218110316932468\nfeature 2: 4\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0595734126984127, "color": "rgb(253,220,205)", "degree": 4, "feature1": 0.9239877566830775, "feature2": 36, "feature3": 1, "id": 17, "label": "fd693e8d-b038-465b-b048-f8d62958e0fc", "node_identifier": "fd693e8d-b038-465b-b048-f8d62958e0fc", "shape": "dot", "size": 10, "title": "Node: fd693e8d-b038-465b-b048-f8d62958e0fc\nNode Features:\nfeature 1: 0.9239877566830775\nfeature 2: 36\nfeature 3: 1\nBetweenness Centrality: 0.0595734126984127\nDegree: 4", "value": 0.0595734126984127}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.7194164407880306, "feature2": 57, "feature3": 0, "id": 34, "label": "a9aacf88-0401-4c74-90df-a627496f7117", "node_identifier": "a9aacf88-0401-4c74-90df-a627496f7117", "shape": "dot", "size": 10, "title": "Node: a9aacf88-0401-4c74-90df-a627496f7117\nNode Features:\nfeature 1: 0.7194164407880306\nfeature 2: 57\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.4433687443141716, "feature2": 39, "feature3": 1, "id": 13, "label": "1b7d2ff5-24f5-448b-8444-2ec2536e903f", "node_identifier": "1b7d2ff5-24f5-448b-8444-2ec2536e903f", "shape": "dot", "size": 10, "title": "Node: 1b7d2ff5-24f5-448b-8444-2ec2536e903f\nNode Features:\nfeature 1: 0.4433687443141716\nfeature 2: 39\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.6567451420573335, "feature2": 46, "feature3": 1, "id": 19, "label": "efa9150a-39df-45fc-891d-c20eef8acdf1", "node_identifier": "efa9150a-39df-45fc-891d-c20eef8acdf1", "shape": "dot", "size": 10, "title": "Node: efa9150a-39df-45fc-891d-c20eef8acdf1\nNode Features:\nfeature 1: 0.6567451420573335\nfeature 2: 46\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.07059037900874639, "color": "rgb(253,212,194)", "degree": 5, "feature1": 0.9394414653030713, "feature2": 72, "feature3": 0, "id": 23, "label": "ba66b808-012a-4971-8700-3bca4c04927d", "node_identifier": "ba66b808-012a-4971-8700-3bca4c04927d", "shape": "dot", "size": 10, "title": "Node: ba66b808-012a-4971-8700-3bca4c04927d\nNode Features:\nfeature 1: 0.9394414653030713\nfeature 2: 72\nfeature 3: 0\nBetweenness Centrality: 0.07059037900874639\nDegree: 5", "value": 0.07059037900874639}, {"betweenness_centrality": 0.08503401360544217, "color": "rgb(252,202,182)", "degree": 3, "feature1": 0.11225396162791934, "feature2": 97, "feature3": 0, "id": 24, "label": "ac421813-9242-4573-b1f8-1005b19807f9", "node_identifier": "ac421813-9242-4573-b1f8-1005b19807f9", "shape": "dot", "size": 10, "title": "Node: ac421813-9242-4573-b1f8-1005b19807f9\nNode Features:\nfeature 1: 0.11225396162791934\nfeature 2: 97\nfeature 3: 0\nBetweenness Centrality: 0.08503401360544217\nDegree: 3", "value": 0.08503401360544217}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 2, "feature1": 0.7470437490158061, "feature2": 19, "feature3": 0, "id": 26, "label": "939e984c-8941-4e95-a222-b16ffde54391", "node_identifier": "939e984c-8941-4e95-a222-b16ffde54391", "shape": "dot", "size": 10, "title": "Node: 939e984c-8941-4e95-a222-b16ffde54391\nNode Features:\nfeature 1: 0.7470437490158061\nfeature 2: 19\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 2", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.22185256025339906, "feature2": 88, "feature3": 0, "id": 27, "label": "52190b0a-7dcf-4588-82fe-0208d27e79e1", "node_identifier": "52190b0a-7dcf-4588-82fe-0208d27e79e1", "shape": "dot", "size": 10, "title": "Node: 52190b0a-7dcf-4588-82fe-0208d27e79e1\nNode Features:\nfeature 1: 0.22185256025339906\nfeature 2: 88\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.4513170601202434, "feature2": 64, "feature3": 0, "id": 30, "label": "d961cc3b-e26b-45d0-b45d-8cb8890911d2", "node_identifier": "d961cc3b-e26b-45d0-b45d-8cb8890911d2", "shape": "dot", "size": 10, "title": "Node: d961cc3b-e26b-45d0-b45d-8cb8890911d2\nNode Features:\nfeature 1: 0.4513170601202434\nfeature 2: 64\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.003755668934240363, "color": "rgb(254,243,238)", "degree": 2, "feature1": 0.5539674276924716, "feature2": 8, "feature3": 1, "id": 41, "label": "289b3cf6-68bf-47bf-933b-428f169af254", "node_identifier": "289b3cf6-68bf-47bf-933b-428f169af254", "shape": "dot", "size": 10, "title": "Node: 289b3cf6-68bf-47bf-933b-428f169af254\nNode Features:\nfeature 1: 0.5539674276924716\nfeature 2: 8\nfeature 3: 1\nBetweenness Centrality: 0.003755668934240363\nDegree: 2", "value": 0.003755668934240363}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.23161138844275775, "feature2": 88, "feature3": 0, "id": 48, "label": "17716111-cf8b-4694-b538-1192edb34b14", "node_identifier": "17716111-cf8b-4694-b538-1192edb34b14", "shape": "dot", "size": 10, "title": "Node: 17716111-cf8b-4694-b538-1192edb34b14\nNode Features:\nfeature 1: 0.23161138844275775\nfeature 2: 88\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.5876697956047289, "feature2": 96, "feature3": 0, "id": 46, "label": "29c2e3a2-fb9d-42e4-a2c5-b4175a5b9423", "node_identifier": "29c2e3a2-fb9d-42e4-a2c5-b4175a5b9423", "shape": "dot", "size": 10, "title": "Node: 29c2e3a2-fb9d-42e4-a2c5-b4175a5b9423\nNode Features:\nfeature 1: 0.5876697956047289\nfeature 2: 96\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.9572701650899479, "feature2": 38, "feature3": 0, "id": 45, "label": "fde37eab-934d-433d-98bb-386ca04371b0", "node_identifier": "fde37eab-934d-433d-98bb-386ca04371b0", "shape": "dot", "size": 10, "title": "Node: fde37eab-934d-433d-98bb-386ca04371b0\nNode Features:\nfeature 1: 0.9572701650899479\nfeature 2: 38\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.04081632653061224, "color": "rgb(254,229,217)", "degree": 2, "feature1": 0.1622944641561146, "feature2": 21, "feature3": 0, "id": 37, "label": "b809dfbc-e6de-440d-88b3-0e25c89a5e18", "node_identifier": "b809dfbc-e6de-440d-88b3-0e25c89a5e18", "shape": "dot", "size": 10, "title": "Node: b809dfbc-e6de-440d-88b3-0e25c89a5e18\nNode Features:\nfeature 1: 0.1622944641561146\nfeature 2: 21\nfeature 3: 0\nBetweenness Centrality: 0.04081632653061224\nDegree: 2", "value": 0.04081632653061224}, {"betweenness_centrality": 0.04081632653061224, "color": "rgb(254,229,217)", "degree": 2, "feature1": 0.8883021181344855, "feature2": 65, "feature3": 0, "id": 40, "label": "eca2d55e-25e2-47e2-96fe-2c2661f7139e", "node_identifier": "eca2d55e-25e2-47e2-96fe-2c2661f7139e", "shape": "dot", "size": 10, "title": "Node: eca2d55e-25e2-47e2-96fe-2c2661f7139e\nNode Features:\nfeature 1: 0.8883021181344855\nfeature 2: 65\nfeature 3: 0\nBetweenness Centrality: 0.04081632653061224\nDegree: 2", "value": 0.04081632653061224}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.8228428373509326, "feature2": 58, "feature3": 0, "id": 42, "label": "e206d3d0-b370-42b0-bf82-351bdc10f3cd", "node_identifier": "e206d3d0-b370-42b0-bf82-351bdc10f3cd", "shape": "dot", "size": 10, "title": "Node: e206d3d0-b370-42b0-bf82-351bdc10f3cd\nNode Features:\nfeature 1: 0.8228428373509326\nfeature 2: 58\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.0016322975737158574, "feature2": 4, "feature3": 1, "id": 49, "label": "82fb2b56-bf5e-430b-9042-49f9bd15a904", "node_identifier": "82fb2b56-bf5e-430b-9042-49f9bd15a904", "shape": "dot", "size": 10, "title": "Node: 82fb2b56-bf5e-430b-9042-49f9bd15a904\nNode Features:\nfeature 1: 0.0016322975737158574\nfeature 2: 4\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.8895020908687654, "feature2": 92, "feature3": 0, "id": 44, "label": "c83ea452-d12a-4c23-8946-427ec90db297", "node_identifier": "c83ea452-d12a-4c23-8946-427ec90db297", "shape": "dot", "size": 10, "title": "Node: c83ea452-d12a-4c23-8946-427ec90db297\nNode Features:\nfeature 1: 0.8895020908687654\nfeature 2: 92\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}]);
+                  edges = new vis.DataSet([{"color": "rgb(251,127,95)", "feature1": 0.44748328390359515, "feature2": 84, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 5319b327-d68f-4497-9b65-19a0cdf77b0e\nEdge Features:\nfeature 1: 0.44748328390359515\nfeature 2: 84", "to": 1, "value": 0.44748328390359515, "width": 1}, {"color": "rgb(229,49,39)", "feature1": 0.6651562997300783, "feature2": 17, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 0fe1cf11-5ab2-43f9-a5bc-496a21dd67f0\nEdge Features:\nfeature 1: 0.6651562997300783\nfeature 2: 17", "to": 2, "value": 0.6651562997300783, "width": 1}, {"color": "rgb(220,40,36)", "feature1": 0.6956360493754995, "feature2": 50, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 10692dbd-483a-4bc0-9177-97c03a5637c8\nEdge Features:\nfeature 1: 0.6956360493754995\nfeature 2: 50", "to": 3, "value": 0.6956360493754995, "width": 1}, {"color": "rgb(254,235,226)", "feature1": 0.09047428040858008, "feature2": 62, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 7be9f135-c6fa-4903-b476-e6d85e0d42f2\nEdge Features:\nfeature 1: 0.09047428040858008\nfeature 2: 62", "to": 5, "value": 0.09047428040858008, "width": 1}, {"color": "rgb(252,195,172)", "feature1": 0.24720947038336316, "feature2": 4, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e b8b0fe6b-03d6-4b3c-b2cd-8901e7c1b5b0\nEdge Features:\nfeature 1: 0.24720947038336316\nfeature 2: 4", "to": 6, "value": 0.24720947038336316, "width": 1}, {"color": "rgb(136,8,17)", "feature1": 0.927534986734895, "feature2": 77, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 64bb5773-c4ad-4a8d-b21d-e98ce866914b\nEdge Features:\nfeature 1: 0.927534986734895\nfeature 2: 77", "to": 9, "value": 0.927534986734895, "width": 1}, {"color": "rgb(222,42,37)", "feature1": 0.6863079762462629, "feature2": 68, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 907138cc-0024-44f1-86da-903277a1e9b0\nEdge Features:\nfeature 1: 0.6863079762462629\nfeature 2: 68", "to": 11, "value": 0.6863079762462629, "width": 1}, {"color": "rgb(138,8,17)", "feature1": 0.9235163117161734, "feature2": 14, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 8f49af29-4f4d-4349-82de-597cc5e80f9e\nEdge Features:\nfeature 1: 0.9235163117161734\nfeature 2: 14", "to": 15, "value": 0.9235163117161734, "width": 1}, {"color": "rgb(251,145,113)", "feature1": 0.39745142973388736, "feature2": 87, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 389019ae-d8cf-4391-8278-fdbaf9e55065\nEdge Features:\nfeature 1: 0.39745142973388736\nfeature 2: 87", "to": 20, "value": 0.39745142973388736, "width": 1}, {"color": "rgb(110,1,14)", "feature1": 0.9732175080244201, "feature2": 84, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 30fc768b-2a62-4836-880f-bfa466c678a8\nEdge Features:\nfeature 1: 0.9732175080244201\nfeature 2: 84", "to": 22, "value": 0.9732175080244201, "width": 1}, {"color": "rgb(251,135,103)", "feature1": 0.42549674188081354, "feature2": 75, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e d413854c-59ae-4022-af56-21aeb041bb73\nEdge Features:\nfeature 1: 0.42549674188081354\nfeature 2: 75", "to": 25, "value": 0.42549674188081354, "width": 1}, {"color": "rgb(252,186,160)", "feature1": 0.27642162453566355, "feature2": 43, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 195ea095-808a-49ef-b320-f7488e4350e8\nEdge Features:\nfeature 1: 0.27642162453566355\nfeature 2: 43", "to": 36, "value": 0.27642162453566355, "width": 1}, {"color": "rgb(240,63,47)", "feature1": 0.6192261863097346, "feature2": 5, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e 11e95b05-c137-4b26-b874-b395fe17eea8\nEdge Features:\nfeature 1: 0.6192261863097346\nfeature 2: 5", "to": 38, "value": 0.6192261863097346, "width": 1}, {"color": "rgb(252,157,126)", "feature1": 0.36280001007206164, "feature2": 24, "from": 0, "title": "Edge: 28f2adfd-cc1b-42ac-853c-36b161712845 -\u003e d3121c4a-59b6-434a-adf3-2c8da6a756b4\nEdge Features:\nfeature 1: 0.36280001007206164\nfeature 2: 24", "to": 39, "value": 0.36280001007206164, "width": 1}, {"color": "rgb(190,20,26)", "feature1": 0.7925848816421893, "feature2": 74, "from": 1, "title": "Edge: 5319b327-d68f-4497-9b65-19a0cdf77b0e -\u003e 10692dbd-483a-4bc0-9177-97c03a5637c8\nEdge Features:\nfeature 1: 0.7925848816421893\nfeature 2: 74", "to": 3, "value": 0.7925848816421893, "width": 1}, {"color": "rgb(103,0,12)", "feature1": 0.9914794257221514, "feature2": 54, "from": 2, "title": "Edge: 0fe1cf11-5ab2-43f9-a5bc-496a21dd67f0 -\u003e f797b4ce-b0b3-4e72-9e2a-9d1a6ed6c286\nEdge Features:\nfeature 1: 0.9914794257221514\nfeature 2: 54", "to": 4, "value": 0.9914794257221514, "width": 1}, {"color": "rgb(255,245,240)", "feature1": 0.03692063068243867, "feature2": 62, "from": 2, "title": "Edge: 0fe1cf11-5ab2-43f9-a5bc-496a21dd67f0 -\u003e dd7099f1-c604-46d4-8727-058259e5ccb1\nEdge Features:\nfeature 1: 0.03692063068243867\nfeature 2: 62", "to": 32, "value": 0.03692063068243867, "width": 1}, {"color": "rgb(168,15,21)", "feature1": 0.8593991837588818, "feature2": 26, "from": 2, "title": "Edge: 0fe1cf11-5ab2-43f9-a5bc-496a21dd67f0 -\u003e da6b5163-2912-4f7d-bbea-8b7369429961\nEdge Features:\nfeature 1: 0.8593991837588818\nfeature 2: 26", "to": 33, "value": 0.8593991837588818, "width": 1}, {"color": "rgb(252,184,157)", "feature1": 0.2850076476094422, "feature2": 11, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e f797b4ce-b0b3-4e72-9e2a-9d1a6ed6c286\nEdge Features:\nfeature 1: 0.2850076476094422\nfeature 2: 11", "to": 4, "value": 0.2850076476094422, "width": 1}, {"color": "rgb(211,31,32)", "feature1": 0.7242940768338525, "feature2": 18, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e 7be9f135-c6fa-4903-b476-e6d85e0d42f2\nEdge Features:\nfeature 1: 0.7242940768338525\nfeature 2: 18", "to": 5, "value": 0.7242940768338525, "width": 1}, {"color": "rgb(252,166,137)", "feature1": 0.3354969529886309, "feature2": 63, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e af7f0cf7-4c44-4644-bcc7-2627016c563f\nEdge Features:\nfeature 1: 0.3354969529886309\nfeature 2: 63", "to": 7, "value": 0.3354969529886309, "width": 1}, {"color": "rgb(220,40,36)", "feature1": 0.6964494064898911, "feature2": 28, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e 64bb5773-c4ad-4a8d-b21d-e98ce866914b\nEdge Features:\nfeature 1: 0.6964494064898911\nfeature 2: 28", "to": 9, "value": 0.6964494064898911, "width": 1}, {"color": "rgb(136,8,17)", "feature1": 0.9278021294216937, "feature2": 62, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e 907138cc-0024-44f1-86da-903277a1e9b0\nEdge Features:\nfeature 1: 0.9278021294216937\nfeature 2: 62", "to": 11, "value": 0.9278021294216937, "width": 1}, {"color": "rgb(252,199,177)", "feature1": 0.23707117154320823, "feature2": 60, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e 591054fa-23ce-49d8-86d7-3c27ce95c9d3\nEdge Features:\nfeature 1: 0.23707117154320823\nfeature 2: 60", "to": 18, "value": 0.23707117154320823, "width": 1}, {"color": "rgb(252,194,171)", "feature1": 0.2510908565763941, "feature2": 61, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e e42c0581-a5b3-41d4-9eee-8ccd5c860a22\nEdge Features:\nfeature 1: 0.2510908565763941\nfeature 2: 61", "to": 21, "value": 0.2510908565763941, "width": 1}, {"color": "rgb(252,186,160)", "feature1": 0.2756106191421549, "feature2": 17, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e 7e138c37-f8d5-4f5d-ab68-c83a9f19c7b0\nEdge Features:\nfeature 1: 0.2756106191421549\nfeature 2: 17", "to": 29, "value": 0.2756106191421549, "width": 1}, {"color": "rgb(228,48,39)", "feature1": 0.6687511288333565, "feature2": 88, "from": 3, "title": "Edge: 10692dbd-483a-4bc0-9177-97c03a5637c8 -\u003e dd7099f1-c604-46d4-8727-058259e5ccb1\nEdge Features:\nfeature 1: 0.6687511288333565\nfeature 2: 88", "to": 32, "value": 0.6687511288333565, "width": 1}, {"color": "rgb(252,175,147)", "feature1": 0.30954636991346884, "feature2": 24, "from": 4, "title": "Edge: f797b4ce-b0b3-4e72-9e2a-9d1a6ed6c286 -\u003e 341fcf2d-aa4b-4ef0-a333-0e00168222f0\nEdge Features:\nfeature 1: 0.30954636991346884\nfeature 2: 24", "to": 8, "value": 0.30954636991346884, "width": 1}, {"color": "rgb(251,121,89)", "feature1": 0.4694512252627975, "feature2": 60, "from": 5, "title": "Edge: 7be9f135-c6fa-4903-b476-e6d85e0d42f2 -\u003e b8b0fe6b-03d6-4b3c-b2cd-8901e7c1b5b0\nEdge Features:\nfeature 1: 0.4694512252627975\nfeature 2: 60", "to": 6, "value": 0.4694512252627975, "width": 1}, {"color": "rgb(108,1,13)", "feature1": 0.9772392905390057, "feature2": 66, "from": 5, "title": "Edge: 7be9f135-c6fa-4903-b476-e6d85e0d42f2 -\u003e 1e3144b3-14aa-4f32-b504-625192b035ce\nEdge Features:\nfeature 1: 0.9772392905390057\nfeature 2: 66", "to": 14, "value": 0.9772392905390057, "width": 1}, {"color": "rgb(253,206,186)", "feature1": 0.21256532426474362, "feature2": 26, "from": 5, "title": "Edge: 7be9f135-c6fa-4903-b476-e6d85e0d42f2 -\u003e 185cdc3e-856e-494c-ac2c-d9a78b68b7ab\nEdge Features:\nfeature 1: 0.21256532426474362\nfeature 2: 26", "to": 16, "value": 0.21256532426474362, "width": 1}, {"color": "rgb(161,14,20)", "feature1": 0.8789678287927081, "feature2": 4, "from": 5, "title": "Edge: 7be9f135-c6fa-4903-b476-e6d85e0d42f2 -\u003e 9297556d-b4c8-403a-a728-e1450ba7719a\nEdge Features:\nfeature 1: 0.8789678287927081\nfeature 2: 4", "to": 28, "value": 0.8789678287927081, "width": 1}, {"color": "rgb(252,160,131)", "feature1": 0.3537441062815224, "feature2": 91, "from": 5, "title": "Edge: 7be9f135-c6fa-4903-b476-e6d85e0d42f2 -\u003e 28f2fae3-d7e5-4821-8ae9-2414101b36ee\nEdge Features:\nfeature 1: 0.3537441062815224\nfeature 2: 91", "to": 31, "value": 0.3537441062815224, "width": 1}, {"color": "rgb(252,197,174)", "feature1": 0.24320804863502643, "feature2": 15, "from": 5, "title": "Edge: 7be9f135-c6fa-4903-b476-e6d85e0d42f2 -\u003e 37d98a90-c7c0-43cd-8f9d-46b29ecfec75\nEdge Features:\nfeature 1: 0.24320804863502643\nfeature 2: 15", "to": 47, "value": 0.24320804863502643, "width": 1}, {"color": "rgb(200,23,28)", "feature1": 0.7566025288117479, "feature2": 21, "from": 6, "title": "Edge: b8b0fe6b-03d6-4b3c-b2cd-8901e7c1b5b0 -\u003e af7f0cf7-4c44-4644-bcc7-2627016c563f\nEdge Features:\nfeature 1: 0.7566025288117479\nfeature 2: 21", "to": 7, "value": 0.7566025288117479, "width": 1}, {"color": "rgb(252,160,131)", "feature1": 0.3517017254752235, "feature2": 77, "from": 6, "title": "Edge: b8b0fe6b-03d6-4b3c-b2cd-8901e7c1b5b0 -\u003e 7c23c784-eb08-426d-a43c-29f46238b601\nEdge Features:\nfeature 1: 0.3517017254752235\nfeature 2: 77", "to": 35, "value": 0.3517017254752235, "width": 1}, {"color": "rgb(249,100,70)", "feature1": 0.5283003213984121, "feature2": 9, "from": 6, "title": "Edge: b8b0fe6b-03d6-4b3c-b2cd-8901e7c1b5b0 -\u003e 2cfa3f5b-f0a5-49d8-90cf-61ec7f57bb4c\nEdge Features:\nfeature 1: 0.5283003213984121\nfeature 2: 9", "to": 43, "value": 0.5283003213984121, "width": 1}, {"color": "rgb(244,81,58)", "feature1": 0.575981233882813, "feature2": 32, "from": 9, "title": "Edge: 64bb5773-c4ad-4a8d-b21d-e98ce866914b -\u003e d50ecbea-aaf2-45a7-b1e3-a1a68145935f\nEdge Features:\nfeature 1: 0.575981233882813\nfeature 2: 32", "to": 10, "value": 0.575981233882813, "width": 1}, {"color": "rgb(240,63,47)", "feature1": 0.6215491744311824, "feature2": 86, "from": 9, "title": "Edge: 64bb5773-c4ad-4a8d-b21d-e98ce866914b -\u003e a27a7713-884a-44db-97d9-ee9fe54135fb\nEdge Features:\nfeature 1: 0.6215491744311824\nfeature 2: 86", "to": 12, "value": 0.6215491744311824, "width": 1}, {"color": "rgb(139,8,17)", "feature1": 0.9171580183647299, "feature2": 65, "from": 9, "title": "Edge: 64bb5773-c4ad-4a8d-b21d-e98ce866914b -\u003e 1e3144b3-14aa-4f32-b504-625192b035ce\nEdge Features:\nfeature 1: 0.9171580183647299\nfeature 2: 65", "to": 14, "value": 0.9171580183647299, "width": 1}, {"color": "rgb(254,229,218)", "feature1": 0.12325212010636144, "feature2": 15, "from": 9, "title": "Edge: 64bb5773-c4ad-4a8d-b21d-e98ce866914b -\u003e fd693e8d-b038-465b-b048-f8d62958e0fc\nEdge Features:\nfeature 1: 0.12325212010636144\nfeature 2: 15", "to": 17, "value": 0.12325212010636144, "width": 1}, {"color": "rgb(216,37,34)", "feature1": 0.7053972078175095, "feature2": 0, "from": 9, "title": "Edge: 64bb5773-c4ad-4a8d-b21d-e98ce866914b -\u003e a9aacf88-0401-4c74-90df-a627496f7117\nEdge Features:\nfeature 1: 0.7053972078175095\nfeature 2: 0", "to": 34, "value": 0.7053972078175095, "width": 1}, {"color": "rgb(163,14,20)", "feature1": 0.8745520570771632, "feature2": 34, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e 1b7d2ff5-24f5-448b-8444-2ec2536e903f\nEdge Features:\nfeature 1: 0.8745520570771632\nfeature 2: 34", "to": 13, "value": 0.8745520570771632, "width": 1}, {"color": "rgb(180,18,24)", "feature1": 0.8209434233892423, "feature2": 48, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e 185cdc3e-856e-494c-ac2c-d9a78b68b7ab\nEdge Features:\nfeature 1: 0.8209434233892423\nfeature 2: 48", "to": 16, "value": 0.8209434233892423, "width": 1}, {"color": "rgb(244,78,56)", "feature1": 0.5815236623886957, "feature2": 62, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e fd693e8d-b038-465b-b048-f8d62958e0fc\nEdge Features:\nfeature 1: 0.5815236623886957\nfeature 2: 62", "to": 17, "value": 0.5815236623886957, "width": 1}, {"color": "rgb(103,0,12)", "feature1": 0.9912412993280055, "feature2": 90, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e efa9150a-39df-45fc-891d-c20eef8acdf1\nEdge Features:\nfeature 1: 0.9912412993280055\nfeature 2: 90", "to": 19, "value": 0.9912412993280055, "width": 1}, {"color": "rgb(118,3,15)", "feature1": 0.960808856970591, "feature2": 91, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e ba66b808-012a-4971-8700-3bca4c04927d\nEdge Features:\nfeature 1: 0.960808856970591\nfeature 2: 91", "to": 23, "value": 0.960808856970591, "width": 1}, {"color": "rgb(151,11,19)", "feature1": 0.8970321118812128, "feature2": 42, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e ac421813-9242-4573-b1f8-1005b19807f9\nEdge Features:\nfeature 1: 0.8970321118812128\nfeature 2: 42", "to": 24, "value": 0.8970321118812128, "width": 1}, {"color": "rgb(250,103,72)", "feature1": 0.5212251389132881, "feature2": 85, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e 939e984c-8941-4e95-a222-b16ffde54391\nEdge Features:\nfeature 1: 0.5212251389132881\nfeature 2: 85", "to": 26, "value": 0.5212251389132881, "width": 1}, {"color": "rgb(212,33,32)", "feature1": 0.7222442650073633, "feature2": 22, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e 52190b0a-7dcf-4588-82fe-0208d27e79e1\nEdge Features:\nfeature 1: 0.7222442650073633\nfeature 2: 22", "to": 27, "value": 0.7222442650073633, "width": 1}, {"color": "rgb(252,173,145)", "feature1": 0.316575704955835, "feature2": 67, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e d961cc3b-e26b-45d0-b45d-8cb8890911d2\nEdge Features:\nfeature 1: 0.316575704955835\nfeature 2: 67", "to": 30, "value": 0.316575704955835, "width": 1}, {"color": "rgb(193,21,27)", "feature1": 0.7810010560501234, "feature2": 25, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e da6b5163-2912-4f7d-bbea-8b7369429961\nEdge Features:\nfeature 1: 0.7810010560501234\nfeature 2: 25", "to": 33, "value": 0.7810010560501234, "width": 1}, {"color": "rgb(248,94,66)", "feature1": 0.5404030509154498, "feature2": 37, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e 289b3cf6-68bf-47bf-933b-428f169af254\nEdge Features:\nfeature 1: 0.5404030509154498\nfeature 2: 37", "to": 41, "value": 0.5404030509154498, "width": 1}, {"color": "rgb(222,42,37)", "feature1": 0.6877712415124354, "feature2": 35, "from": 11, "title": "Edge: 907138cc-0024-44f1-86da-903277a1e9b0 -\u003e 17716111-cf8b-4694-b538-1192edb34b14\nEdge Features:\nfeature 1: 0.6877712415124354\nfeature 2: 35", "to": 48, "value": 0.6877712415124354, "width": 1}, {"color": "rgb(251,109,77)", "feature1": 0.5061192453895383, "feature2": 22, "from": 17, "title": "Edge: fd693e8d-b038-465b-b048-f8d62958e0fc -\u003e 939e984c-8941-4e95-a222-b16ffde54391\nEdge Features:\nfeature 1: 0.5061192453895383\nfeature 2: 22", "to": 26, "value": 0.5061192453895383, "width": 1}, {"color": "rgb(249,100,70)", "feature1": 0.5277283846004666, "feature2": 13, "from": 17, "title": "Edge: fd693e8d-b038-465b-b048-f8d62958e0fc -\u003e 29c2e3a2-fb9d-42e4-a2c5-b4175a5b9423\nEdge Features:\nfeature 1: 0.5277283846004666\nfeature 2: 13", "to": 46, "value": 0.5277283846004666, "width": 1}, {"color": "rgb(252,153,122)", "feature1": 0.37600066647244834, "feature2": 51, "from": 21, "title": "Edge: e42c0581-a5b3-41d4-9eee-8ccd5c860a22 -\u003e d413854c-59ae-4022-af56-21aeb041bb73\nEdge Features:\nfeature 1: 0.37600066647244834\nfeature 2: 51", "to": 25, "value": 0.37600066647244834, "width": 1}, {"color": "rgb(187,20,25)", "feature1": 0.7988724137504231, "feature2": 72, "from": 22, "title": "Edge: 30fc768b-2a62-4836-880f-bfa466c678a8 -\u003e ac421813-9242-4573-b1f8-1005b19807f9\nEdge Features:\nfeature 1: 0.7988724137504231\nfeature 2: 72", "to": 24, "value": 0.7988724137504231, "width": 1}, {"color": "rgb(253,212,194)", "feature1": 0.19578308428898072, "feature2": 28, "from": 23, "title": "Edge: ba66b808-012a-4971-8700-3bca4c04927d -\u003e 7e138c37-f8d5-4f5d-ab68-c83a9f19c7b0\nEdge Features:\nfeature 1: 0.19578308428898072\nfeature 2: 28", "to": 29, "value": 0.19578308428898072, "width": 1}, {"color": "rgb(251,136,104)", "feature1": 0.4230110767895332, "feature2": 81, "from": 23, "title": "Edge: ba66b808-012a-4971-8700-3bca4c04927d -\u003e d3121c4a-59b6-434a-adf3-2c8da6a756b4\nEdge Features:\nfeature 1: 0.4230110767895332\nfeature 2: 81", "to": 39, "value": 0.4230110767895332, "width": 1}, {"color": "rgb(247,90,64)", "feature1": 0.5530529263943149, "feature2": 25, "from": 23, "title": "Edge: ba66b808-012a-4971-8700-3bca4c04927d -\u003e 2cfa3f5b-f0a5-49d8-90cf-61ec7f57bb4c\nEdge Features:\nfeature 1: 0.5530529263943149\nfeature 2: 25", "to": 43, "value": 0.5530529263943149, "width": 1}, {"color": "rgb(239,61,45)", "feature1": 0.6282372023428869, "feature2": 69, "from": 23, "title": "Edge: ba66b808-012a-4971-8700-3bca4c04927d -\u003e fde37eab-934d-433d-98bb-386ca04371b0\nEdge Features:\nfeature 1: 0.6282372023428869\nfeature 2: 69", "to": 45, "value": 0.6282372023428869, "width": 1}, {"color": "rgb(250,102,71)", "feature1": 0.522608254066881, "feature2": 55, "from": 24, "title": "Edge: ac421813-9242-4573-b1f8-1005b19807f9 -\u003e b809dfbc-e6de-440d-88b3-0e25c89a5e18\nEdge Features:\nfeature 1: 0.522608254066881\nfeature 2: 55", "to": 37, "value": 0.522608254066881, "width": 1}, {"color": "rgb(251,106,74)", "feature1": 0.5107555767390615, "feature2": 18, "from": 25, "title": "Edge: d413854c-59ae-4022-af56-21aeb041bb73 -\u003e eca2d55e-25e2-47e2-96fe-2c2661f7139e\nEdge Features:\nfeature 1: 0.5107555767390615\nfeature 2: 18", "to": 40, "value": 0.5107555767390615, "width": 1}, {"color": "rgb(240,63,47)", "feature1": 0.620494449936311, "feature2": 53, "from": 29, "title": "Edge: 7e138c37-f8d5-4f5d-ab68-c83a9f19c7b0 -\u003e 289b3cf6-68bf-47bf-933b-428f169af254\nEdge Features:\nfeature 1: 0.620494449936311\nfeature 2: 53", "to": 41, "value": 0.620494449936311, "width": 1}, {"color": "rgb(254,229,218)", "feature1": 0.12329037492005102, "feature2": 15, "from": 32, "title": "Edge: dd7099f1-c604-46d4-8727-058259e5ccb1 -\u003e e206d3d0-b370-42b0-bf82-351bdc10f3cd\nEdge Features:\nfeature 1: 0.12329037492005102\nfeature 2: 15", "to": 42, "value": 0.12329037492005102, "width": 1}, {"color": "rgb(251,124,92)", "feature1": 0.4611143308741118, "feature2": 74, "from": 37, "title": "Edge: b809dfbc-e6de-440d-88b3-0e25c89a5e18 -\u003e 82fb2b56-bf5e-430b-9042-49f9bd15a904\nEdge Features:\nfeature 1: 0.4611143308741118\nfeature 2: 74", "to": 49, "value": 0.4611143308741118, "width": 1}, {"color": "rgb(252,146,114)", "feature1": 0.39138987280093407, "feature2": 75, "from": 40, "title": "Edge: eca2d55e-25e2-47e2-96fe-2c2661f7139e -\u003e c83ea452-d12a-4c23-8946-427ec90db297\nEdge Features:\nfeature 1: 0.39138987280093407\nfeature 2: 75", "to": 44, "value": 0.39138987280093407, "width": 1}, {"color": "rgb(174,17,23)", "feature1": 0.8401312068687602, "feature2": 76, "from": 43, "title": "Edge: 2cfa3f5b-f0a5-49d8-90cf-61ec7f57bb4c -\u003e 37d98a90-c7c0-43cd-8f9d-46b29ecfec75\nEdge Features:\nfeature 1: 0.8401312068687602\nfeature 2: 76", "to": 47, "value": 0.8401312068687602, "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": true
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+                  // if this network requires displaying the configure window,
+                  // put it in its div
+                  options.configure["container"] = document.getElementById("config");
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>

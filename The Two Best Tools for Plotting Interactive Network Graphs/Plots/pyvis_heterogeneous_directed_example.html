@@ -1,0 +1,338 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+                <link href="lib/tom-select/tom-select.css" rel="stylesheet">
+                <script src="lib/tom-select/tom-select.complete.min.js"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 900;
+                 background-color: grey;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+             #config {
+                 float: left;
+                 width: 400px;
+                 height: 600px;
+             }
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+              <div id="filter-menu" class="card-header">
+                <div class="row no-gutters">
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'item')"
+                            id="select-item"
+                        >
+                        <option value="">Select a network item</option>
+                        <option value="edge">edge</option>
+                        <option value="node">node</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'property')"
+                            id="select-property"
+                        >
+                        <option value="">Select a property...</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            id="select-value"
+                        >
+                        <option value="">Select value(s)...</option>
+                    </select>
+                  </div>
+                  <div class="col-1 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="highlightFilter(filter);">Filter</button>
+                  </div>
+                  <div class="col-2 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="clearFilter(true)">Reset Selection</button>
+                  </div>
+                </div>
+              </div>
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+            <div id="config"></div>
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+                  // explicitly using onItemAdd and this function as we need to save multiple values
+                  let updateValueFilter = function() {
+                      return function () {
+                      filter['value'].push(arguments[0])
+                      }
+                  }
+
+                  let valueControl = new TomSelect("#select-value",{
+                      maxItems: null,
+                      valueField: 'id',
+                      labelField: 'title',
+                      searchField: 'title',
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: updateValueFilter()
+                  });
+
+                  let addValues = function() {
+                      return function () {
+                          // clear the current value options and add the selected attribute values
+                          // tom-select handles duplicates
+                          let selectedProperty = arguments[0];
+                          valueControl.clear();
+                          valueControl.clearOptions();
+                          filter['value'] = []
+                          if (filter['item'] === 'node') {
+                              for (let each in allNodes) {
+                                  valueControl.addOption({
+                                      id:allNodes[each][selectedProperty],
+                                      title:allNodes[each][selectedProperty]
+                                  })
+                              }
+                          }
+                          else if (filter['item'] === 'edge') {
+                              for (let each in allEdges) {
+                                  valueControl.addOption({
+                                      id:allEdges[each][selectedProperty],
+                                      title:allEdges[each][selectedProperty]
+                                  })
+                              }
+                          }
+                      }
+                  };
+
+                  let propControl = new TomSelect("#select-property",{
+                      valueField: 'id',
+                      labelField: 'title',
+                      searchField: 'title',
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: addValues()
+                  });
+
+                  let addProperties = function() {
+                      return function () {
+                          // loops through the selected network item and adds the attributes to dropdown
+                          // tom-select handles duplicates
+                          clearFilter(false)
+                          if (arguments[0] === 'edge') {
+                              for (let each in allEdges) {
+                                  if (allEdges.hasOwnProperty(each)) {
+                                      for (let eachProp in allEdges[each]) {
+                                          if (allEdges[each].hasOwnProperty(eachProp)) {
+                                              propControl.addOption({id: eachProp, title: eachProp})
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                          else if (arguments[0] === 'node') {
+                              for (let each in allNodes) {
+                                  if (allNodes.hasOwnProperty(each)) {
+                                      for (let eachProp in allNodes[each]) {
+                                          if (allNodes[each].hasOwnProperty(eachProp)
+                                              && (eachProp !== 'hidden' && eachProp !== 'savedLabel'
+                                                  && eachProp !== 'hiddenLabel')) {
+                                              propControl.addOption({id: eachProp, title: eachProp})
+
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  };
+
+                  let itemControl = new TomSelect("#select-item",{
+                      create: false,
+                      sortField:{
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: addProperties()
+                  });
+
+                  function clearFilter(reset) {
+                      // utility function to clear all the selected filter options
+                      // if reset is set to true, the existing filter will be removed
+                      // else, only the dropdown options are cleared
+                      propControl.clear();
+                      propControl.clearOptions();
+                      valueControl.clear();
+                      valueControl.clearOptions();
+                      filter = {
+                          item : '',
+                          property : '',
+                          value : []
+                      }
+                      if (reset) {
+                          itemControl.clear();
+                          filterHighlight({nodes: []})
+                      }
+                  }
+
+                  function updateFilter(value, key) {
+                      // key could be 'item' or 'property' and value is as selected in dropdown
+                      filter[key] = value
+                  }
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"betweenness_centrality": 0.03975340136054421, "color": "rgb(252,151,120)", "degree": 17, "feature1": 0.9155749042968255, "feature2": 30, "feature3": 0, "id": 0, "label": "8fb554e5-fd34-452b-8fd6-527a0ace7580", "node_identifier": "8fb554e5-fd34-452b-8fd6-527a0ace7580", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 8fb554e5-fd34-452b-8fd6-527a0ace7580\nNode Features:\nfeature 1: 0.9155749042968255\nfeature 2: 30\nfeature 3: 0\nBetweenness Centrality: 0.03975340136054421\nDegree: 17", "value": 0.03975340136054421}, {"betweenness_centrality": 0.005952380952380952, "color": "rgb(254,236,227)", "degree": 13, "feature1": 0.811176223004512, "feature2": 86, "feature3": 1, "id": 1, "label": "0687c98c-84de-4c85-8409-9306a96c7c35", "node_identifier": "0687c98c-84de-4c85-8409-9306a96c7c35", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 0687c98c-84de-4c85-8409-9306a96c7c35\nNode Features:\nfeature 1: 0.811176223004512\nfeature 2: 86\nfeature 3: 1\nBetweenness Centrality: 0.005952380952380952\nDegree: 13", "value": 0.005952380952380952}, {"betweenness_centrality": 0.11139455782312925, "color": "rgb(103,0,12)", "degree": 75, "feature1": 0.1315999149547108, "feature2": 39, "feature3": 0, "id": 2, "label": "b195a5fa-a79a-470d-84be-2b6c0d2dcfd4", "node_identifier": "b195a5fa-a79a-470d-84be-2b6c0d2dcfd4", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nNode Features:\nfeature 1: 0.1315999149547108\nfeature 2: 39\nfeature 3: 0\nBetweenness Centrality: 0.11139455782312925\nDegree: 75", "value": 0.11139455782312925}, {"betweenness_centrality": 0.00467687074829932, "color": "rgb(254,238,230)", "degree": 6, "feature1": 0.601035682194519, "feature2": 41, "feature3": 0, "id": 11, "label": "33b8941c-0ae3-481f-aa07-de23a8214b3d", "node_identifier": "33b8941c-0ae3-481f-aa07-de23a8214b3d", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 33b8941c-0ae3-481f-aa07-de23a8214b3d\nNode Features:\nfeature 1: 0.601035682194519\nfeature 2: 41\nfeature 3: 0\nBetweenness Centrality: 0.00467687074829932\nDegree: 6", "value": 0.00467687074829932}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 12, "feature1": 0.9052140773263394, "feature2": 32, "feature3": 1, "id": 4, "label": "060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207", "node_identifier": "060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nNode Features:\nfeature 1: 0.9052140773263394\nfeature 2: 32\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 12", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 5, "feature1": 0.9659795986766864, "feature2": 73, "feature3": 1, "id": 9, "label": "a7a4b339-978c-45a3-b6d0-cd5c8c8526a5", "node_identifier": "a7a4b339-978c-45a3-b6d0-cd5c8c8526a5", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: a7a4b339-978c-45a3-b6d0-cd5c8c8526a5\nNode Features:\nfeature 1: 0.9659795986766864\nfeature 2: 73\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 5", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 7, "feature1": 0.08965619347570719, "feature2": 17, "feature3": 0, "id": 5, "label": "e1764112-7649-4b7e-ba08-a128fdfd838b", "node_identifier": "e1764112-7649-4b7e-ba08-a128fdfd838b", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: e1764112-7649-4b7e-ba08-a128fdfd838b\nNode Features:\nfeature 1: 0.08965619347570719\nfeature 2: 17\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 7", "value": 0.0}, {"betweenness_centrality": 0.012542517006802721, "color": "rgb(254,226,213)", "degree": 5, "feature1": 0.07678407011873067, "feature2": 2, "feature3": 1, "id": 6, "label": "3e81960b-1755-4346-b852-8dd1f8fec6c9", "node_identifier": "3e81960b-1755-4346-b852-8dd1f8fec6c9", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 3e81960b-1755-4346-b852-8dd1f8fec6c9\nNode Features:\nfeature 1: 0.07678407011873067\nfeature 2: 2\nfeature 3: 1\nBetweenness Centrality: 0.012542517006802721\nDegree: 5", "value": 0.012542517006802721}, {"betweenness_centrality": 0.006802721088435374, "color": "rgb(254,235,225)", "degree": 4, "feature1": 0.5755091512551805, "feature2": 51, "feature3": 0, "id": 19, "label": "64be0fa5-4736-49df-99a7-cc781dba389f", "node_identifier": "64be0fa5-4736-49df-99a7-cc781dba389f", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 64be0fa5-4736-49df-99a7-cc781dba389f\nNode Features:\nfeature 1: 0.5755091512551805\nfeature 2: 51\nfeature 3: 0\nBetweenness Centrality: 0.006802721088435374\nDegree: 4", "value": 0.006802721088435374}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 5, "feature1": 0.5649644338169705, "feature2": 81, "feature3": 1, "id": 3, "label": "d33bba82-0869-492c-bead-93ee1a525f00", "node_identifier": "d33bba82-0869-492c-bead-93ee1a525f00", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: d33bba82-0869-492c-bead-93ee1a525f00\nNode Features:\nfeature 1: 0.5649644338169705\nfeature 2: 81\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 5", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 11, "feature1": 0.062052415096476965, "feature2": 36, "feature3": 0, "id": 7, "label": "413275a1-4ea2-4735-ab13-7184dbb8c8e9", "node_identifier": "413275a1-4ea2-4735-ab13-7184dbb8c8e9", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 413275a1-4ea2-4735-ab13-7184dbb8c8e9\nNode Features:\nfeature 1: 0.062052415096476965\nfeature 2: 36\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 11", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 2, "feature1": 0.8739423341540549, "feature2": 5, "feature3": 1, "id": 8, "label": "157e5692-8a14-41a5-9453-6c8d2a03559a", "node_identifier": "157e5692-8a14-41a5-9453-6c8d2a03559a", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 157e5692-8a14-41a5-9453-6c8d2a03559a\nNode Features:\nfeature 1: 0.8739423341540549\nfeature 2: 5\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 2", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.1801249144196918, "feature2": 38, "feature3": 0, "id": 10, "label": "9118ffa4-a0f0-41cb-9a15-e0a66f2d0337", "node_identifier": "9118ffa4-a0f0-41cb-9a15-e0a66f2d0337", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 9118ffa4-a0f0-41cb-9a15-e0a66f2d0337\nNode Features:\nfeature 1: 0.1801249144196918\nfeature 2: 38\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 2, "feature1": 0.14138384869627163, "feature2": 71, "feature3": 0, "id": 12, "label": "8f4e2764-a272-4194-b193-40ebd3287a77", "node_identifier": "8f4e2764-a272-4194-b193-40ebd3287a77", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 8f4e2764-a272-4194-b193-40ebd3287a77\nNode Features:\nfeature 1: 0.14138384869627163\nfeature 2: 71\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 2", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.6538245019056959, "feature2": 97, "feature3": 1, "id": 13, "label": "a22658e9-2556-4fa3-b281-6b3332f7da6d", "node_identifier": "a22658e9-2556-4fa3-b281-6b3332f7da6d", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: a22658e9-2556-4fa3-b281-6b3332f7da6d\nNode Features:\nfeature 1: 0.6538245019056959\nfeature 2: 97\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 2, "feature1": 0.3451015716398047, "feature2": 26, "feature3": 1, "id": 14, "label": "ab079e5f-409c-4a34-b3b6-00b11dd3e463", "node_identifier": "ab079e5f-409c-4a34-b3b6-00b11dd3e463", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: ab079e5f-409c-4a34-b3b6-00b11dd3e463\nNode Features:\nfeature 1: 0.3451015716398047\nfeature 2: 26\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 2", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.49577545003884793, "feature2": 77, "feature3": 1, "id": 15, "label": "3588fb45-a3e3-47f8-bfc0-40b1215a83fa", "node_identifier": "3588fb45-a3e3-47f8-bfc0-40b1215a83fa", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 3588fb45-a3e3-47f8-bfc0-40b1215a83fa\nNode Features:\nfeature 1: 0.49577545003884793\nfeature 2: 77\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.2702597606206353, "feature2": 65, "feature3": 1, "id": 16, "label": "ba7cab09-46ae-4e11-bceb-8f07411ffcb6", "node_identifier": "ba7cab09-46ae-4e11-bceb-8f07411ffcb6", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: ba7cab09-46ae-4e11-bceb-8f07411ffcb6\nNode Features:\nfeature 1: 0.2702597606206353\nfeature 2: 65\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 3, "feature1": 0.8067681013603453, "feature2": 43, "feature3": 0, "id": 17, "label": "073bc991-c1be-498e-b471-16dd62b0b6dd", "node_identifier": "073bc991-c1be-498e-b471-16dd62b0b6dd", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 073bc991-c1be-498e-b471-16dd62b0b6dd\nNode Features:\nfeature 1: 0.8067681013603453\nfeature 2: 43\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 3", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.6479865315924062, "feature2": 7, "feature3": 0, "id": 18, "label": "c86a7fff-54c8-4118-a065-0d63cad535de", "node_identifier": "c86a7fff-54c8-4118-a065-0d63cad535de", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: c86a7fff-54c8-4118-a065-0d63cad535de\nNode Features:\nfeature 1: 0.6479865315924062\nfeature 2: 7\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.3753351034791206, "feature2": 26, "feature3": 1, "id": 20, "label": "6feff9a8-ff4f-43df-b23a-6dd693604836", "node_identifier": "6feff9a8-ff4f-43df-b23a-6dd693604836", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 6feff9a8-ff4f-43df-b23a-6dd693604836\nNode Features:\nfeature 1: 0.3753351034791206\nfeature 2: 26\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.5560761242369049, "feature2": 1, "feature3": 0, "id": 21, "label": "fcf81c7e-16be-4686-994e-aeda4975ce61", "node_identifier": "fcf81c7e-16be-4686-994e-aeda4975ce61", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: fcf81c7e-16be-4686-994e-aeda4975ce61\nNode Features:\nfeature 1: 0.5560761242369049\nfeature 2: 1\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.31984306092028947, "feature2": 26, "feature3": 0, "id": 22, "label": "b7ba9aff-f4a4-470d-abac-e0ad33969935", "node_identifier": "b7ba9aff-f4a4-470d-abac-e0ad33969935", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: b7ba9aff-f4a4-470d-abac-e0ad33969935\nNode Features:\nfeature 1: 0.31984306092028947\nfeature 2: 26\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.991942476508255, "feature2": 39, "feature3": 0, "id": 23, "label": "3ad9a911-f57c-407b-a46d-1cffd798305a", "node_identifier": "3ad9a911-f57c-407b-a46d-1cffd798305a", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 3ad9a911-f57c-407b-a46d-1cffd798305a\nNode Features:\nfeature 1: 0.991942476508255\nfeature 2: 39\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.6641639022675789, "feature2": 94, "feature3": 0, "id": 24, "label": "9ab2fcbe-7f53-469a-96cb-bf3ef3347911", "node_identifier": "9ab2fcbe-7f53-469a-96cb-bf3ef3347911", "node_type": 0, "shape": "dot", "size": 10, "title": "Node: 9ab2fcbe-7f53-469a-96cb-bf3ef3347911\nNode Features:\nfeature 1: 0.6641639022675789\nfeature 2: 94\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.590070532941069, "feature2": 29, "feature3": 1, "id": 25, "label": "c1882443-9e83-4b04-b4ce-83d2f6746f60", "node_identifier": "c1882443-9e83-4b04-b4ce-83d2f6746f60", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: c1882443-9e83-4b04-b4ce-83d2f6746f60\nNode Features:\nfeature 1: 0.590070532941069\nfeature 2: 29\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.8941963182381322, "feature2": 40, "feature3": 1, "id": 26, "label": "99fb63cd-12dd-42ab-9926-c243353bc72e", "node_identifier": "99fb63cd-12dd-42ab-9926-c243353bc72e", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 99fb63cd-12dd-42ab-9926-c243353bc72e\nNode Features:\nfeature 1: 0.8941963182381322\nfeature 2: 40\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.0485534932928422, "feature2": 47, "feature3": 0, "id": 27, "label": "d7610e45-8af0-48a0-8923-bd8d5b10962f", "node_identifier": "d7610e45-8af0-48a0-8923-bd8d5b10962f", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: d7610e45-8af0-48a0-8923-bd8d5b10962f\nNode Features:\nfeature 1: 0.0485534932928422\nfeature 2: 47\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.21206513286015483, "feature2": 40, "feature3": 1, "id": 28, "label": "889efd3e-b46c-48e2-9ee3-4afc20752bf6", "node_identifier": "889efd3e-b46c-48e2-9ee3-4afc20752bf6", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 889efd3e-b46c-48e2-9ee3-4afc20752bf6\nNode Features:\nfeature 1: 0.21206513286015483\nfeature 2: 40\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.1714403918679024, "feature2": 75, "feature3": 1, "id": 29, "label": "73cee5bc-9ba4-42ee-ba34-55bd20d189d9", "node_identifier": "73cee5bc-9ba4-42ee-ba34-55bd20d189d9", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 73cee5bc-9ba4-42ee-ba34-55bd20d189d9\nNode Features:\nfeature 1: 0.1714403918679024\nfeature 2: 75\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.6437284494621127, "feature2": 35, "feature3": 1, "id": 30, "label": "75fa3e19-7d14-4450-8869-6d39c54a7ad9", "node_identifier": "75fa3e19-7d14-4450-8869-6d39c54a7ad9", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 75fa3e19-7d14-4450-8869-6d39c54a7ad9\nNode Features:\nfeature 1: 0.6437284494621127\nfeature 2: 35\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.2577503525928897, "feature2": 82, "feature3": 1, "id": 31, "label": "91f366f7-582f-4700-9dc0-bd110d4fb125", "node_identifier": "91f366f7-582f-4700-9dc0-bd110d4fb125", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 91f366f7-582f-4700-9dc0-bd110d4fb125\nNode Features:\nfeature 1: 0.2577503525928897\nfeature 2: 82\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.752746290256437, "feature2": 62, "feature3": 1, "id": 32, "label": "05387e17-4127-4712-9d9f-809db707988f", "node_identifier": "05387e17-4127-4712-9d9f-809db707988f", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 05387e17-4127-4712-9d9f-809db707988f\nNode Features:\nfeature 1: 0.752746290256437\nfeature 2: 62\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.08232421249529753, "feature2": 57, "feature3": 1, "id": 33, "label": "8454ab74-7c0b-4077-9f4e-6248aa268347", "node_identifier": "8454ab74-7c0b-4077-9f4e-6248aa268347", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 8454ab74-7c0b-4077-9f4e-6248aa268347\nNode Features:\nfeature 1: 0.08232421249529753\nfeature 2: 57\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.9270551939853109, "feature2": 34, "feature3": 1, "id": 34, "label": "0bcff7e6-eb5d-4c12-89c6-96775f848458", "node_identifier": "0bcff7e6-eb5d-4c12-89c6-96775f848458", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 0bcff7e6-eb5d-4c12-89c6-96775f848458\nNode Features:\nfeature 1: 0.9270551939853109\nfeature 2: 34\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.9163543084897909, "feature2": 11, "feature3": 1, "id": 35, "label": "a986bffb-a576-4947-b45f-3abb099a5473", "node_identifier": "a986bffb-a576-4947-b45f-3abb099a5473", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: a986bffb-a576-4947-b45f-3abb099a5473\nNode Features:\nfeature 1: 0.9163543084897909\nfeature 2: 11\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.2255786496881953, "feature2": 73, "feature3": 1, "id": 36, "label": "edddeb02-64c4-4b4a-8082-06c1a59c4bf0", "node_identifier": "edddeb02-64c4-4b4a-8082-06c1a59c4bf0", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: edddeb02-64c4-4b4a-8082-06c1a59c4bf0\nNode Features:\nfeature 1: 0.2255786496881953\nfeature 2: 73\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 3, "feature1": 0.2728596115518098, "feature2": 89, "feature3": 0, "id": 37, "label": "b075b8b3-7a67-453d-a8a6-1b8c4c6e3c76", "node_identifier": "b075b8b3-7a67-453d-a8a6-1b8c4c6e3c76", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: b075b8b3-7a67-453d-a8a6-1b8c4c6e3c76\nNode Features:\nfeature 1: 0.2728596115518098\nfeature 2: 89\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 3", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.861479517153034, "feature2": 18, "feature3": 0, "id": 38, "label": "78e6b9cd-abb6-4c9c-9b17-eff51734a732", "node_identifier": "78e6b9cd-abb6-4c9c-9b17-eff51734a732", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 78e6b9cd-abb6-4c9c-9b17-eff51734a732\nNode Features:\nfeature 1: 0.861479517153034\nfeature 2: 18\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.04996790943249063, "feature2": 86, "feature3": 0, "id": 39, "label": "dd7a3f5a-f6bf-4d22-b0a0-9829e505fd1b", "node_identifier": "dd7a3f5a-f6bf-4d22-b0a0-9829e505fd1b", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: dd7a3f5a-f6bf-4d22-b0a0-9829e505fd1b\nNode Features:\nfeature 1: 0.04996790943249063\nfeature 2: 86\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.16829773213117505, "feature2": 33, "feature3": 1, "id": 40, "label": "a5ee0f74-6813-4f9c-8f00-d2b2b08fd3d4", "node_identifier": "a5ee0f74-6813-4f9c-8f00-d2b2b08fd3d4", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: a5ee0f74-6813-4f9c-8f00-d2b2b08fd3d4\nNode Features:\nfeature 1: 0.16829773213117505\nfeature 2: 33\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.3365928179680674, "feature2": 86, "feature3": 1, "id": 41, "label": "adf72248-8897-41df-b25e-05d88541f3e1", "node_identifier": "adf72248-8897-41df-b25e-05d88541f3e1", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: adf72248-8897-41df-b25e-05d88541f3e1\nNode Features:\nfeature 1: 0.3365928179680674\nfeature 2: 86\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.9819618041167751, "feature2": 31, "feature3": 1, "id": 42, "label": "e86ebba2-0eb7-47ed-894d-ecd050df2785", "node_identifier": "e86ebba2-0eb7-47ed-894d-ecd050df2785", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: e86ebba2-0eb7-47ed-894d-ecd050df2785\nNode Features:\nfeature 1: 0.9819618041167751\nfeature 2: 31\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.4833534407877249, "feature2": 56, "feature3": 1, "id": 43, "label": "546924b0-3cd5-4713-a1e8-36e1206c07b3", "node_identifier": "546924b0-3cd5-4713-a1e8-36e1206c07b3", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 546924b0-3cd5-4713-a1e8-36e1206c07b3\nNode Features:\nfeature 1: 0.4833534407877249\nfeature 2: 56\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.8058200958093339, "feature2": 34, "feature3": 0, "id": 44, "label": "d0c67b2d-8cd1-4487-957f-b26db2e2f835", "node_identifier": "d0c67b2d-8cd1-4487-957f-b26db2e2f835", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: d0c67b2d-8cd1-4487-957f-b26db2e2f835\nNode Features:\nfeature 1: 0.8058200958093339\nfeature 2: 34\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.1486224409155864, "feature2": 46, "feature3": 1, "id": 45, "label": "3379b9c8-4df5-4958-b91e-5e59f49d12b2", "node_identifier": "3379b9c8-4df5-4958-b91e-5e59f49d12b2", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 3379b9c8-4df5-4958-b91e-5e59f49d12b2\nNode Features:\nfeature 1: 0.1486224409155864\nfeature 2: 46\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.3859531042359595, "feature2": 30, "feature3": 1, "id": 46, "label": "e71607be-b09c-4474-b17e-bd3c0a86b2f5", "node_identifier": "e71607be-b09c-4474-b17e-bd3c0a86b2f5", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: e71607be-b09c-4474-b17e-bd3c0a86b2f5\nNode Features:\nfeature 1: 0.3859531042359595\nfeature 2: 30\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.5463957221121514, "feature2": 95, "feature3": 1, "id": 47, "label": "c56a682f-a7b3-40a8-938f-95709d82ae7b", "node_identifier": "c56a682f-a7b3-40a8-938f-95709d82ae7b", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: c56a682f-a7b3-40a8-938f-95709d82ae7b\nNode Features:\nfeature 1: 0.5463957221121514\nfeature 2: 95\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.6654224585092037, "feature2": 88, "feature3": 1, "id": 48, "label": "af597248-c01e-47aa-adb3-74dbfb447b30", "node_identifier": "af597248-c01e-47aa-adb3-74dbfb447b30", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: af597248-c01e-47aa-adb3-74dbfb447b30\nNode Features:\nfeature 1: 0.6654224585092037\nfeature 2: 88\nfeature 3: 1\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}, {"betweenness_centrality": 0.0, "color": "rgb(255,245,240)", "degree": 1, "feature1": 0.3207826741536406, "feature2": 72, "feature3": 0, "id": 49, "label": "221d170d-af64-450c-b1f3-09c2ea7525e8", "node_identifier": "221d170d-af64-450c-b1f3-09c2ea7525e8", "node_type": 1, "shape": "triangle", "size": 10, "title": "Node: 221d170d-af64-450c-b1f3-09c2ea7525e8\nNode Features:\nfeature 1: 0.3207826741536406\nfeature 2: 72\nfeature 3: 0\nBetweenness Centrality: 0.0\nDegree: 1", "value": 0.0}]);
+                  edges = new vis.DataSet([{"arrows": "to", "color": "rgb(255,245,240)", "feature1": 0.003117882223753754, "feature2": 87, "from": 0, "title": "Edge: 8fb554e5-fd34-452b-8fd6-527a0ace7580 -\u003e 0687c98c-84de-4c85-8409-9306a96c7c35\nEdge Features:\nfeature 1: 0.003117882223753754\nfeature 2: 87", "to": 1, "width": 1}, {"arrows": "to", "color": "rgb(251,116,84)", "feature1": 0.4652809662897476, "feature2": 22, "from": 0, "title": "Edge: 8fb554e5-fd34-452b-8fd6-527a0ace7580 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.4652809662897476\nfeature 2: 22", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(254,232,222)", "feature1": 0.08048824694276013, "feature2": 96, "from": 0, "title": "Edge: 8fb554e5-fd34-452b-8fd6-527a0ace7580 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.08048824694276013\nfeature 2: 96", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(208,29,31)", "feature1": 0.724481248110644, "feature2": 37, "from": 0, "title": "Edge: 8fb554e5-fd34-452b-8fd6-527a0ace7580 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.724481248110644\nfeature 2: 37", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,190,165)", "feature1": 0.24215850009177609, "feature2": 57, "from": 0, "title": "Edge: 8fb554e5-fd34-452b-8fd6-527a0ace7580 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.24215850009177609\nfeature 2: 57", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,189,163)", "feature1": 0.2469066617028438, "feature2": 18, "from": 0, "title": "Edge: 8fb554e5-fd34-452b-8fd6-527a0ace7580 -\u003e 33b8941c-0ae3-481f-aa07-de23a8214b3d\nEdge Features:\nfeature 1: 0.2469066617028438\nfeature 2: 18", "to": 11, "width": 1}, {"arrows": "to", "color": "rgb(254,225,212)", "feature1": 0.12034648814421822, "feature2": 84, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.12034648814421822\nfeature 2: 84", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(233,53,41)", "feature1": 0.6391897276675249, "feature2": 16, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.6391897276675249\nfeature 2: 16", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(166,15,21)", "feature1": 0.8646838332100832, "feature2": 73, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8646838332100832\nfeature 2: 73", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(215,36,34)", "feature1": 0.7013159039907791, "feature2": 56, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.7013159039907791\nfeature 2: 56", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(210,30,31)", "feature1": 0.7193376974098057, "feature2": 69, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.7193376974098057\nfeature 2: 69", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(114,2,14)", "feature1": 0.968231515053636, "feature2": 86, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.968231515053636\nfeature 2: 86", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(254,235,226)", "feature1": 0.06155163419202914, "feature2": 31, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.06155163419202914\nfeature 2: 31", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,191,166)", "feature1": 0.239308033088815, "feature2": 9, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.239308033088815\nfeature 2: 9", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(130,6,16)", "feature1": 0.9364155850343526, "feature2": 36, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.9364155850343526\nfeature 2: 36", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(254,236,227)", "feature1": 0.05688269021705872, "feature2": 0, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e a7a4b339-978c-45a3-b6d0-cd5c8c8526a5\nEdge Features:\nfeature 1: 0.05688269021705872\nfeature 2: 0", "to": 9, "width": 1}, {"arrows": "to", "color": "rgb(251,116,84)", "feature1": 0.4651504945369562, "feature2": 58, "from": 1, "title": "Edge: 0687c98c-84de-4c85-8409-9306a96c7c35 -\u003e e1764112-7649-4b7e-ba08-a128fdfd838b\nEdge Features:\nfeature 1: 0.4651504945369562\nfeature 2: 58", "to": 5, "width": 1}, {"arrows": "to", "color": "rgb(254,244,239)", "feature1": 0.013066882511802103, "feature2": 22, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.013066882511802103\nfeature 2: 22", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(246,87,62)", "feature1": 0.5469889771585932, "feature2": 59, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.5469889771585932\nfeature 2: 59", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(251,134,102)", "feature1": 0.41106976696568176, "feature2": 71, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.41106976696568176\nfeature 2: 71", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(181,18,24)", "feature1": 0.8140865292011178, "feature2": 11, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.8140865292011178\nfeature 2: 11", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(254,228,216)", "feature1": 0.10569773854376596, "feature2": 70, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.10569773854376596\nfeature 2: 70", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(196,22,27)", "feature1": 0.7687001338621923, "feature2": 2, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.7687001338621923\nfeature 2: 2", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(253,218,202)", "feature1": 0.15186041745275003, "feature2": 52, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.15186041745275003\nfeature 2: 52", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(233,53,41)", "feature1": 0.6404815079387164, "feature2": 43, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.6404815079387164\nfeature 2: 43", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(168,15,21)", "feature1": 0.8560783530290849, "feature2": 98, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.8560783530290849\nfeature 2: 98", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(251,145,113)", "feature1": 0.37794512681393, "feature2": 91, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.37794512681393\nfeature 2: 91", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(255,245,240)", "feature1": 0.0019684835234416997, "feature2": 84, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.0019684835234416997\nfeature 2: 84", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(252,163,134)", "feature1": 0.3225817708935814, "feature2": 95, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.3225817708935814\nfeature 2: 95", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(251,117,85)", "feature1": 0.46075173621271626, "feature2": 15, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.46075173621271626\nfeature 2: 15", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(252,158,128)", "feature1": 0.33899975665693594, "feature2": 51, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e e1764112-7649-4b7e-ba08-a128fdfd838b\nEdge Features:\nfeature 1: 0.33899975665693594\nfeature 2: 51", "to": 5, "width": 1}, {"arrows": "to", "color": "rgb(252,148,116)", "feature1": 0.3713320506919028, "feature2": 78, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e e1764112-7649-4b7e-ba08-a128fdfd838b\nEdge Features:\nfeature 1: 0.3713320506919028\nfeature 2: 78", "to": 5, "width": 1}, {"arrows": "to", "color": "rgb(126,5,16)", "feature1": 0.9427069260402567, "feature2": 88, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 3e81960b-1755-4346-b852-8dd1f8fec6c9\nEdge Features:\nfeature 1: 0.9427069260402567\nfeature 2: 88", "to": 6, "width": 1}, {"arrows": "to", "color": "rgb(103,0,12)", "feature1": 0.9952006380818704, "feature2": 23, "from": 2, "title": "Edge: b195a5fa-a79a-470d-84be-2b6c0d2dcfd4 -\u003e 64be0fa5-4736-49df-99a7-cc781dba389f\nEdge Features:\nfeature 1: 0.9952006380818704\nfeature 2: 23", "to": 19, "width": 1}, {"arrows": "to", "color": "rgb(199,23,28)", "feature1": 0.755794738177088, "feature2": 74, "from": 3, "title": "Edge: d33bba82-0869-492c-bead-93ee1a525f00 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.755794738177088\nfeature 2: 74", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(171,16,22)", "feature1": 0.8477787062243854, "feature2": 79, "from": 3, "title": "Edge: d33bba82-0869-492c-bead-93ee1a525f00 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8477787062243854\nfeature 2: 79", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(248,96,67)", "feature1": 0.5227734119651994, "feature2": 78, "from": 3, "title": "Edge: d33bba82-0869-492c-bead-93ee1a525f00 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.5227734119651994\nfeature 2: 78", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(239,62,46)", "feature1": 0.6111535994486436, "feature2": 67, "from": 3, "title": "Edge: d33bba82-0869-492c-bead-93ee1a525f00 -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.6111535994486436\nfeature 2: 67", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(171,16,22)", "feature1": 0.8475816097381969, "feature2": 66, "from": 3, "title": "Edge: d33bba82-0869-492c-bead-93ee1a525f00 -\u003e e1764112-7649-4b7e-ba08-a128fdfd838b\nEdge Features:\nfeature 1: 0.8475816097381969\nfeature 2: 66", "to": 5, "width": 1}, {"arrows": "to", "color": "rgb(206,27,30)", "feature1": 0.7312165447608061, "feature2": 47, "from": 6, "title": "Edge: 3e81960b-1755-4346-b852-8dd1f8fec6c9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.7312165447608061\nfeature 2: 47", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,157,126)", "feature1": 0.34144049994725134, "feature2": 71, "from": 6, "title": "Edge: 3e81960b-1755-4346-b852-8dd1f8fec6c9 -\u003e a7a4b339-978c-45a3-b6d0-cd5c8c8526a5\nEdge Features:\nfeature 1: 0.34144049994725134\nfeature 2: 71", "to": 9, "width": 1}, {"arrows": "to", "color": "rgb(251,134,102)", "feature1": 0.4137372275768283, "feature2": 58, "from": 6, "title": "Edge: 3e81960b-1755-4346-b852-8dd1f8fec6c9 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.4137372275768283\nfeature 2: 58", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(169,16,22)", "feature1": 0.85011967488959, "feature2": 55, "from": 6, "title": "Edge: 3e81960b-1755-4346-b852-8dd1f8fec6c9 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.85011967488959\nfeature 2: 55", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(253,211,192)", "feature1": 0.173803693052911, "feature2": 44, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.173803693052911\nfeature 2: 44", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(252,184,157)", "feature1": 0.26255664484015384, "feature2": 34, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.26255664484015384\nfeature 2: 34", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(149,11,19)", "feature1": 0.8981044734039912, "feature2": 7, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e a7a4b339-978c-45a3-b6d0-cd5c8c8526a5\nEdge Features:\nfeature 1: 0.8981044734039912\nfeature 2: 7", "to": 9, "width": 1}, {"arrows": "to", "color": "rgb(242,72,52)", "feature1": 0.5866266087186978, "feature2": 32, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.5866266087186978\nfeature 2: 32", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(251,139,107)", "feature1": 0.3960991627758138, "feature2": 11, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.3960991627758138\nfeature 2: 11", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(174,17,23)", "feature1": 0.8364559756162134, "feature2": 85, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8364559756162134\nfeature 2: 85", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(188,20,26)", "feature1": 0.7895836057892975, "feature2": 46, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.7895836057892975\nfeature 2: 46", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,177,150)", "feature1": 0.2831052665547993, "feature2": 96, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.2831052665547993\nfeature 2: 96", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(153,12,19)", "feature1": 0.8915435356739285, "feature2": 55, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8915435356739285\nfeature 2: 55", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,184,157)", "feature1": 0.2637941741694614, "feature2": 49, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.2637941741694614\nfeature 2: 49", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(212,33,32)", "feature1": 0.7133350080258121, "feature2": 38, "from": 7, "title": "Edge: 413275a1-4ea2-4735-ab13-7184dbb8c8e9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.7133350080258121\nfeature 2: 38", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(254,229,218)", "feature1": 0.09673690442866323, "feature2": 59, "from": 8, "title": "Edge: 157e5692-8a14-41a5-9453-6c8d2a03559a -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.09673690442866323\nfeature 2: 59", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(251,125,93)", "feature1": 0.43785243342766844, "feature2": 30, "from": 8, "title": "Edge: 157e5692-8a14-41a5-9453-6c8d2a03559a -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.43785243342766844\nfeature 2: 30", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,158,128)", "feature1": 0.3406409863668588, "feature2": 94, "from": 10, "title": "Edge: 9118ffa4-a0f0-41cb-9a15-e0a66f2d0337 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.3406409863668588\nfeature 2: 94", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,151,120)", "feature1": 0.35930247262334536, "feature2": 11, "from": 11, "title": "Edge: 33b8941c-0ae3-481f-aa07-de23a8214b3d -\u003e 0687c98c-84de-4c85-8409-9306a96c7c35\nEdge Features:\nfeature 1: 0.35930247262334536\nfeature 2: 11", "to": 1, "width": 1}, {"arrows": "to", "color": "rgb(247,93,66)", "feature1": 0.5314456481603855, "feature2": 81, "from": 11, "title": "Edge: 33b8941c-0ae3-481f-aa07-de23a8214b3d -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.5314456481603855\nfeature 2: 81", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,199,177)", "feature1": 0.21170710551548255, "feature2": 76, "from": 12, "title": "Edge: 8f4e2764-a272-4194-b193-40ebd3287a77 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.21170710551548255\nfeature 2: 76", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(251,135,103)", "feature1": 0.4079832932496408, "feature2": 32, "from": 12, "title": "Edge: 8f4e2764-a272-4194-b193-40ebd3287a77 -\u003e 33b8941c-0ae3-481f-aa07-de23a8214b3d\nEdge Features:\nfeature 1: 0.4079832932496408\nfeature 2: 32", "to": 11, "width": 1}, {"arrows": "to", "color": "rgb(242,72,52)", "feature1": 0.5849025096934961, "feature2": 52, "from": 13, "title": "Edge: a22658e9-2556-4fa3-b281-6b3332f7da6d -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.5849025096934961\nfeature 2: 52", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(252,186,160)", "feature1": 0.25422528784071197, "feature2": 25, "from": 14, "title": "Edge: ab079e5f-409c-4a34-b3b6-00b11dd3e463 -\u003e 33b8941c-0ae3-481f-aa07-de23a8214b3d\nEdge Features:\nfeature 1: 0.25422528784071197\nfeature 2: 25", "to": 11, "width": 1}, {"arrows": "to", "color": "rgb(124,5,15)", "feature1": 0.948959315328455, "feature2": 76, "from": 14, "title": "Edge: ab079e5f-409c-4a34-b3b6-00b11dd3e463 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.948959315328455\nfeature 2: 76", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(253,211,192)", "feature1": 0.1717810856878611, "feature2": 89, "from": 15, "title": "Edge: 3588fb45-a3e3-47f8-bfc0-40b1215a83fa -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.1717810856878611\nfeature 2: 89", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(252,146,114)", "feature1": 0.37533682432477333, "feature2": 3, "from": 16, "title": "Edge: ba7cab09-46ae-4e11-bceb-8f07411ffcb6 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.37533682432477333\nfeature 2: 3", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(241,68,50)", "feature1": 0.5980574161969064, "feature2": 72, "from": 17, "title": "Edge: 073bc991-c1be-498e-b471-16dd62b0b6dd -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.5980574161969064\nfeature 2: 72", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(217,38,35)", "feature1": 0.6943639771188391, "feature2": 8, "from": 17, "title": "Edge: 073bc991-c1be-498e-b471-16dd62b0b6dd -\u003e e1764112-7649-4b7e-ba08-a128fdfd838b\nEdge Features:\nfeature 1: 0.6943639771188391\nfeature 2: 8", "to": 5, "width": 1}, {"arrows": "to", "color": "rgb(252,168,139)", "feature1": 0.30744233039797997, "feature2": 1, "from": 17, "title": "Edge: 073bc991-c1be-498e-b471-16dd62b0b6dd -\u003e a7a4b339-978c-45a3-b6d0-cd5c8c8526a5\nEdge Features:\nfeature 1: 0.30744233039797997\nfeature 2: 1", "to": 9, "width": 1}, {"arrows": "to", "color": "rgb(255,245,240)", "feature1": 0.0041070993639835685, "feature2": 72, "from": 18, "title": "Edge: c86a7fff-54c8-4118-a065-0d63cad535de -\u003e 33b8941c-0ae3-481f-aa07-de23a8214b3d\nEdge Features:\nfeature 1: 0.0041070993639835685\nfeature 2: 72", "to": 11, "width": 1}, {"arrows": "to", "color": "rgb(254,243,237)", "feature1": 0.01955707234901316, "feature2": 64, "from": 19, "title": "Edge: 64be0fa5-4736-49df-99a7-cc781dba389f -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.01955707234901316\nfeature 2: 64", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(254,229,218)", "feature1": 0.09625119709493402, "feature2": 83, "from": 20, "title": "Edge: 6feff9a8-ff4f-43df-b23a-6dd693604836 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.09625119709493402\nfeature 2: 83", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(234,55,42)", "feature1": 0.6368544060446698, "feature2": 24, "from": 21, "title": "Edge: fcf81c7e-16be-4686-994e-aeda4975ce61 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.6368544060446698\nfeature 2: 24", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(251,127,95)", "feature1": 0.4314458001016316, "feature2": 61, "from": 22, "title": "Edge: b7ba9aff-f4a4-470d-abac-e0ad33969935 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.4314458001016316\nfeature 2: 61", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,184,157)", "feature1": 0.26305743093433087, "feature2": 41, "from": 23, "title": "Edge: 3ad9a911-f57c-407b-a46d-1cffd798305a -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.26305743093433087\nfeature 2: 41", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(241,68,50)", "feature1": 0.597274771620997, "feature2": 14, "from": 24, "title": "Edge: 9ab2fcbe-7f53-469a-96cb-bf3ef3347911 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.597274771620997\nfeature 2: 14", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(252,176,148)", "feature1": 0.28695238545410395, "feature2": 35, "from": 25, "title": "Edge: c1882443-9e83-4b04-b4ce-83d2f6746f60 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.28695238545410395\nfeature 2: 35", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(211,31,32)", "feature1": 0.7183762907500274, "feature2": 36, "from": 26, "title": "Edge: 99fb63cd-12dd-42ab-9926-c243353bc72e -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.7183762907500274\nfeature 2: 36", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(172,16,22)", "feature1": 0.8451105534741128, "feature2": 42, "from": 27, "title": "Edge: d7610e45-8af0-48a0-8923-bd8d5b10962f -\u003e a7a4b339-978c-45a3-b6d0-cd5c8c8526a5\nEdge Features:\nfeature 1: 0.8451105534741128\nfeature 2: 42", "to": 9, "width": 1}, {"arrows": "to", "color": "rgb(252,146,114)", "feature1": 0.371886885713552, "feature2": 75, "from": 28, "title": "Edge: 889efd3e-b46c-48e2-9ee3-4afc20752bf6 -\u003e e1764112-7649-4b7e-ba08-a128fdfd838b\nEdge Features:\nfeature 1: 0.371886885713552\nfeature 2: 75", "to": 5, "width": 1}, {"arrows": "to", "color": "rgb(254,236,227)", "feature1": 0.05708988802172488, "feature2": 54, "from": 29, "title": "Edge: 73cee5bc-9ba4-42ee-ba34-55bd20d189d9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.05708988802172488\nfeature 2: 54", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(253,216,200)", "feature1": 0.15354777410494647, "feature2": 72, "from": 30, "title": "Edge: 75fa3e19-7d14-4450-8869-6d39c54a7ad9 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.15354777410494647\nfeature 2: 72", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(254,231,221)", "feature1": 0.08437532176898077, "feature2": 87, "from": 31, "title": "Edge: 91f366f7-582f-4700-9dc0-bd110d4fb125 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.08437532176898077\nfeature 2: 87", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(103,0,12)", "feature1": 0.9998345512856243, "feature2": 21, "from": 32, "title": "Edge: 05387e17-4127-4712-9d9f-809db707988f -\u003e 64be0fa5-4736-49df-99a7-cc781dba389f\nEdge Features:\nfeature 1: 0.9998345512856243\nfeature 2: 21", "to": 19, "width": 1}, {"arrows": "to", "color": "rgb(149,11,19)", "feature1": 0.8992400808425005, "feature2": 96, "from": 33, "title": "Edge: 8454ab74-7c0b-4077-9f4e-6248aa268347 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8992400808425005\nfeature 2: 96", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(251,121,89)", "feature1": 0.4492681575699493, "feature2": 55, "from": 34, "title": "Edge: 0bcff7e6-eb5d-4c12-89c6-96775f848458 -\u003e 64be0fa5-4736-49df-99a7-cc781dba389f\nEdge Features:\nfeature 1: 0.4492681575699493\nfeature 2: 55", "to": 19, "width": 1}, {"arrows": "to", "color": "rgb(208,29,31)", "feature1": 0.7255858361545906, "feature2": 31, "from": 35, "title": "Edge: a986bffb-a576-4947-b45f-3abb099a5473 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.7255858361545906\nfeature 2: 31", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(159,13,20)", "feature1": 0.8795729291727321, "feature2": 73, "from": 36, "title": "Edge: edddeb02-64c4-4b4a-8082-06c1a59c4bf0 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8795729291727321\nfeature 2: 73", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(240,65,48)", "feature1": 0.6031418350634, "feature2": 49, "from": 37, "title": "Edge: b075b8b3-7a67-453d-a8a6-1b8c4c6e3c76 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.6031418350634\nfeature 2: 49", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(151,11,19)", "feature1": 0.8941998180738973, "feature2": 23, "from": 37, "title": "Edge: b075b8b3-7a67-453d-a8a6-1b8c4c6e3c76 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8941998180738973\nfeature 2: 23", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(251,117,85)", "feature1": 0.4625639180490885, "feature2": 39, "from": 37, "title": "Edge: b075b8b3-7a67-453d-a8a6-1b8c4c6e3c76 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.4625639180490885\nfeature 2: 39", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(249,99,69)", "feature1": 0.5166289834240748, "feature2": 83, "from": 38, "title": "Edge: 78e6b9cd-abb6-4c9c-9b17-eff51734a732 -\u003e 8fb554e5-fd34-452b-8fd6-527a0ace7580\nEdge Features:\nfeature 1: 0.5166289834240748\nfeature 2: 83", "to": 0, "width": 1}, {"arrows": "to", "color": "rgb(118,3,15)", "feature1": 0.9594021779762082, "feature2": 22, "from": 39, "title": "Edge: dd7a3f5a-f6bf-4d22-b0a0-9829e505fd1b -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.9594021779762082\nfeature 2: 22", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(252,177,150)", "feature1": 0.28323074507876, "feature2": 41, "from": 40, "title": "Edge: a5ee0f74-6813-4f9c-8f00-d2b2b08fd3d4 -\u003e 060d968b-3ff2-4cc5-a6c1-8b3a6b3bb207\nEdge Features:\nfeature 1: 0.28323074507876\nfeature 2: 41", "to": 4, "width": 1}, {"arrows": "to", "color": "rgb(173,17,22)", "feature1": 0.8399924061846202, "feature2": 8, "from": 41, "title": "Edge: adf72248-8897-41df-b25e-05d88541f3e1 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8399924061846202\nfeature 2: 8", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(161,14,20)", "feature1": 0.8740374517052091, "feature2": 61, "from": 42, "title": "Edge: e86ebba2-0eb7-47ed-894d-ecd050df2785 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8740374517052091\nfeature 2: 61", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(116,3,14)", "feature1": 0.9639327617818891, "feature2": 8, "from": 43, "title": "Edge: 546924b0-3cd5-4713-a1e8-36e1206c07b3 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.9639327617818891\nfeature 2: 8", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(223,44,37)", "feature1": 0.6743840152541526, "feature2": 80, "from": 44, "title": "Edge: d0c67b2d-8cd1-4487-957f-b26db2e2f835 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.6743840152541526\nfeature 2: 80", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(161,14,20)", "feature1": 0.8745486112898139, "feature2": 69, "from": 45, "title": "Edge: 3379b9c8-4df5-4958-b91e-5e59f49d12b2 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.8745486112898139\nfeature 2: 69", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(254,240,233)", "feature1": 0.03537208001880199, "feature2": 42, "from": 46, "title": "Edge: e71607be-b09c-4474-b17e-bd3c0a86b2f5 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.03537208001880199\nfeature 2: 42", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(240,65,48)", "feature1": 0.6031915445245708, "feature2": 18, "from": 47, "title": "Edge: c56a682f-a7b3-40a8-938f-95709d82ae7b -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.6031915445245708\nfeature 2: 18", "to": 2, "width": 1}, {"arrows": "to", "color": "rgb(203,24,29)", "feature1": 0.7424123080309468, "feature2": 64, "from": 48, "title": "Edge: af597248-c01e-47aa-adb3-74dbfb447b30 -\u003e e1764112-7649-4b7e-ba08-a128fdfd838b\nEdge Features:\nfeature 1: 0.7424123080309468\nfeature 2: 64", "to": 5, "width": 1}, {"arrows": "to", "color": "rgb(252,163,134)", "feature1": 0.32540230004543436, "feature2": 15, "from": 49, "title": "Edge: 221d170d-af64-450c-b1f3-09c2ea7525e8 -\u003e b195a5fa-a79a-470d-84be-2b6c0d2dcfd4\nEdge Features:\nfeature 1: 0.32540230004543436\nfeature 2: 15", "to": 2, "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": true
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+                  // if this network requires displaying the configure window,
+                  // put it in its div
+                  options.configure["container"] = document.getElementById("config");
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
