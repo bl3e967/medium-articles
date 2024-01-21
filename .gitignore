@@ -161,3 +161,6 @@ cython_debug/
 
 # torch_geometric dataset save dir
 /*/data/*
+
+# torch outputs
+*.pt
