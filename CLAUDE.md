@@ -2,9 +2,8 @@
 
 ## Repository Overview
 
-This repository contains the code and written content for Medium articles published at
-[medium.com/@bl3e967](https://medium.com/@bl3e967), primarily targeting the **Towards Data
-Science** publication. Articles cover Data Science, Python, and software engineering — with
+This repository contains the code and written content for articles published at
+[medium.com/@bl3e967](https://medium.com/@bl3e967) and [towardsdatascience.com/@bl3e967](https://towardsdatascience.com/author/bl3e967/). Articles cover Data Science, Python, and software engineering — with
 a recent focus on network graph visualisation, LLM agents, MCP servers, and coding best
 practices for AI-assisted development.
 
@@ -59,7 +58,7 @@ This is the most important section. Match this style precisely.
   first, then fill in the details progressively.
 - Use install commands in their own bash code block when setting up a library.
 - Name specific tools, versions, and libraries. Be concrete.
-- Explicitly discuss **why** a design decision was made, not just what it is.
+- Explicitly discuss **why** a design decision was made, not just what it is.`
 
 ### Comparisons & Tool Evaluations
 - When comparing multiple tools (e.g. TTS models, graph libraries), cover each with:
